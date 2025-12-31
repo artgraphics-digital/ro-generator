@@ -370,12 +370,29 @@
             };
         }
 
+        // Helper function to draw centered text
+        function drawCenteredText(page, text, font, fontSize, y, xStart, xEnd, color) {
+            const textWidth = font.widthOfTextAtSize(text, fontSize);
+            const boxWidth = xEnd - xStart;
+            // Calculate centered X position
+            const centeredX = xStart + (boxWidth - textWidth) / 2;
+            page.drawText(text, {
+                x: centeredX,
+                y: y,
+                size: fontSize,
+                font: font,
+                color: color
+            });
+        }
+
+
         // ==================== FILL PDF TEMPLATE ====================
         async function fillPDFTemplate(data) {
-            const { PDFDocument, rgb } = PDFLib;
+            const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
             // Load the PDF template
             const pdfDoc = await PDFDocument.load(pdfTemplate);
+            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const pages = pdfDoc.getPages();
             const firstPage = pages[0];
 
@@ -386,81 +403,97 @@
             };
 
             // R.O. Number
-            firstPage.drawText(data.roNumber, {
-                x: 505,
-                y: 738,
-                size: textConfig.fontSize,
-                color: textConfig.color
-            });
+            drawCenteredText(
+                firstPage, 
+                data.roNumber, 
+                helveticaFont,        // Pass the font instance
+                textConfig.fontSize, 
+                644,                  // Y coordinate
+                360,                   // Left boundary (xStart)
+                500,                  // Right boundary (xEnd)
+                textConfig.color
+            );
 
             // Date
-            firstPage.drawText(data.date, {
-                x: 505,
-                y: 722,
-                size: textConfig.fontSize,
-                color: textConfig.color
-            });
+            drawCenteredText(
+                firstPage, 
+                data.date, 
+                helveticaFont,        // Pass the font instance
+                textConfig.fontSize, 
+                619,                  // Y coordinate
+                350,                   // Left boundary (xStart)
+                500,                  // Right boundary (xEnd)
+                textConfig.color
+            );
 
             // Publication Name (Line 1)
-            firstPage.drawText(data.publicationName, {
-                x: 70,
-                y: 670,
-                size: textConfig.fontSize,
-                color: textConfig.color
-            });
+            drawCenteredText(
+                firstPage, 
+                data.publicationName, 
+                helveticaFont,        // Pass the font instance
+                textConfig.fontSize, 
+                589,                  // Y coordinate
+                65,                   // Left boundary (xStart)
+                425,                  // Right boundary (xEnd)
+                textConfig.color
+            );
 
             // Edition (Line 2)
-            firstPage.drawText(data.edition, {
-                x: 70,
-                y: 655,
-                size: textConfig.fontSize,
-                color: textConfig.color
-            });
+            drawCenteredText(
+                firstPage, 
+                data.edition, 
+                helveticaFont,        // Pass the font instance
+                textConfig.fontSize, 
+                564,                  // Y coordinate
+                65,                   // Left boundary (xStart)
+                425,                  // Right boundary (xEnd)
+                textConfig.color
+            );
 
             // Client
             firstPage.drawText(data.client, {
-                x: 135,
-                y: 589,
+                x: 110,
+                y: 509,
                 size: textConfig.fontSize,
                 color: textConfig.color
             });
 
             // Scheduled Date
             firstPage.drawText(data.scheduledDate, {
-                x: 185,
-                y: 573,
+                x: 155,
+                y: 452,
                 size: textConfig.fontSize,
                 color: textConfig.color
             });
 
             // Size
             firstPage.drawText(data.size, {
-                x: 110,
-                y: 557,
+                x: 100,
+                y: 413,
                 size: textConfig.fontSize,
                 color: textConfig.color
             });
 
             // Position
             firstPage.drawText(data.position, {
-                x: 135,
-                y: 541,
+                x: 120,
+                y: 374,
                 size: textConfig.fontSize,
                 color: textConfig.color
             });
 
             // Material
             firstPage.drawText(data.material, {
-                x: 135,
-                y: 525,
+                x: 120,
+                y: 334,
                 size: textConfig.fontSize,
                 color: textConfig.color
             });
 
             // Rate
             firstPage.drawText(data.rate, {
-                x: 110,
-                y: 509,
+                x: 100,
+                y: 297,
                 size: textConfig.fontSize,
                 color: textConfig.color
             });
