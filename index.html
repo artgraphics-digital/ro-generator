@@ -393,6 +393,7 @@
             // Load the PDF template
             const pdfDoc = await PDFDocument.load(pdfTemplate);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
             const pages = pdfDoc.getPages();
             const firstPage = pages[0];
 
@@ -401,36 +402,40 @@
                 fontSize: 14,
                 color: rgb(1, 0, 0)
             };
+            const textConfigB = {
+                fontSize: 11,
+                color: rgb(0, 0, 0)
+            };
 
             // R.O. Number
             drawCenteredText(
                 firstPage, 
                 data.roNumber, 
-                helveticaFont,        // Pass the font instance
-                textConfig.fontSize, 
+                boldFont,        // Pass the font instance
+                textConfigB.fontSize, 
                 644,                  // Y coordinate
                 360,                   // Left boundary (xStart)
                 500,                  // Right boundary (xEnd)
-                textConfig.color
+                textConfigB.color
             );
 
             // Date
             drawCenteredText(
                 firstPage, 
                 data.date, 
-                helveticaFont,        // Pass the font instance
-                textConfig.fontSize, 
+                boldFont,        // Pass the font instance
+                textConfigB.fontSize, 
                 619,                  // Y coordinate
                 350,                   // Left boundary (xStart)
                 500,                  // Right boundary (xEnd)
-                textConfig.color
+                textConfigB.color
             );
 
             // Publication Name (Line 1)
             drawCenteredText(
                 firstPage, 
                 data.publicationName, 
-                helveticaFont,        // Pass the font instance
+                boldFont,        // Pass the font instance
                 textConfig.fontSize, 
                 589,                  // Y coordinate
                 65,                   // Left boundary (xStart)
@@ -442,7 +447,7 @@
             drawCenteredText(
                 firstPage, 
                 data.edition, 
-                helveticaFont,        // Pass the font instance
+                boldFont,        // Pass the font instance
                 textConfig.fontSize, 
                 564,                  // Y coordinate
                 65,                   // Left boundary (xStart)
@@ -453,8 +458,9 @@
             // Client
             firstPage.drawText(data.client, {
                 x: 110,
-                y: 509,
+                y: 490,
                 size: textConfig.fontSize,
+                boldFont,
                 color: textConfig.color
             });
 
@@ -463,6 +469,7 @@
                 x: 155,
                 y: 452,
                 size: textConfig.fontSize,
+                boldFont,
                 color: textConfig.color
             });
 
@@ -471,6 +478,7 @@
                 x: 100,
                 y: 413,
                 size: textConfig.fontSize,
+                boldFont,
                 color: textConfig.color
             });
 
@@ -479,6 +487,7 @@
                 x: 120,
                 y: 374,
                 size: textConfig.fontSize,
+                boldFont,
                 color: textConfig.color
             });
 
@@ -487,6 +496,7 @@
                 x: 120,
                 y: 334,
                 size: textConfig.fontSize,
+                boldFont,
                 color: textConfig.color
             });
 
@@ -495,6 +505,7 @@
                 x: 100,
                 y: 297,
                 size: textConfig.fontSize,
+                boldFont,
                 color: textConfig.color
             });
 
