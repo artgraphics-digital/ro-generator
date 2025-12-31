@@ -406,6 +406,10 @@
                 fontSize: 11,
                 color: rgb(0, 0, 0)
             };
+            const textConfigC = {
+                fontSize: 12,
+                color: rgb(1, 0, 0)
+            };
 
             // R.O. Number
             drawCenteredText(
@@ -459,54 +463,54 @@
             firstPage.drawText(data.client, {
                 x: 110,
                 y: 490,
-                size: textConfig.fontSize,
-                boldFont,
-                color: textConfig.color
+                size: textConfigC.fontSize,
+                font: boldFont,
+                color: textConfigC.color
             });
 
             // Scheduled Date
             firstPage.drawText(data.scheduledDate, {
                 x: 155,
                 y: 452,
-                size: textConfig.fontSize,
-                boldFont,
-                color: textConfig.color
+                size: textConfigC.fontSize,
+                font: boldFont,
+                color: textConfigC.color
             });
 
             // Size
             firstPage.drawText(data.size, {
                 x: 100,
                 y: 413,
-                size: textConfig.fontSize,
-                boldFont,
-                color: textConfig.color
+                size: textConfigC.fontSize,
+                font: boldFont,
+                color: textConfigC.color
             });
 
             // Position
             firstPage.drawText(data.position, {
                 x: 120,
                 y: 374,
-                size: textConfig.fontSize,
-                boldFont,
-                color: textConfig.color
+                size: textConfigC.fontSize,
+                font: boldFont,
+                color: textConfigC.color
             });
 
             // Material
             firstPage.drawText(data.material, {
                 x: 120,
                 y: 334,
-                size: textConfig.fontSize,
-                boldFont,
-                color: textConfig.color
+                size: textConfigC.fontSize,
+                font: boldFont,
+                color: textConfigC.color
             });
 
             // Rate
             firstPage.drawText(data.rate, {
                 x: 100,
                 y: 297,
-                size: textConfig.fontSize,
-                boldFont,
-                color: textConfig.color
+                size: textConfigC.fontSize,
+                font: boldFont,
+                color: textConfigC.color
             });
 
             // Save and return PDF bytes
