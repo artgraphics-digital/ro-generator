@@ -199,6 +199,23 @@
             <div class="number" id="nextRONumber">Loading...</div>
         </div>
 
+        <!-- 1. Template Selection -->
+        <div class="form-group">
+            <label for="templateType">RO Type *</label>
+            <select id="templateType" required>
+                <option value="RO_With_Remarks.pdf">Small(Remarks)</option>
+                <option value="RO_No_Remarks.pdf">Big(No Remarks)</option>
+            </select>
+        </div>
+        
+        <!-- 2. B/W Checkbox -->
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 10px; font-weight: normal; cursor: pointer;">
+                <input type="checkbox" id="isBW" style="width: auto;"> 
+                <strong>(B/W)?</strong>
+            </label>
+        </div>
+
         <form id="releaseOrderForm">
             <div class="form-group">
                 <label for="publicationName">Publication Name *</label>
@@ -253,11 +270,11 @@
 
         // ==================== GLOBAL VARIABLES ====================
         let pdfTemplate = null;
-        let nextRONumber = null;
+        // let nextRONumber = null;
 
         // ==================== INITIALIZATION ====================
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadPDFTemplate();
+            // await loadPDFTemplate();
             await fetchNextRONumber();
             setupFormSubmission();
         });
@@ -344,8 +361,12 @@
             const height = parseFloat(document.getElementById('sizeHeight').value);
             const sqcm = (width * height).toFixed(2);
 
+            // Check B/W Checkbox
+            const isBW = document.getElementById('isBW').checked;
+            const bwSuffix = isBW ? ' (B/W)' : ''; // Append string if checked
+
             const scheduledDate = new Date(document.getElementById('scheduledDate').value);
-            const formattedScheduledDate = scheduledDate.toLocaleDateString('en-US', {
+            const formattedScheduledDate = scheduledDate.toLocaleDateString('en-IN', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric'
@@ -353,7 +374,7 @@
 
             return {
                 roNumber: nextRONumber,
-                date: new Date().toLocaleDateString('en-GB', {
+                date: new Date().toLocaleDateString('en-IN', {
                     day: '2-digit',
                     month: '2-digit',
                     year: 'numeric'
@@ -361,8 +382,10 @@
                 publicationName: document.getElementById('publicationName').value,
                 edition: document.getElementById('edition').value,
                 client: document.getElementById('client').value,
-                scheduledDate: formattedScheduledDate + ' MUST',
-                size: `${width}CM (W) X ${height}CM (H) = ${sqcm} SQCM`,
+                scheduledDate: formattedScheduledDate + '  \"MUST\"',
+                size: `${width}CM (W) X ${height}CM (H) = ${sqcm} SQCM ${bwSuffix}`,
+                // Add template filename to data so we know which one to load
+                templateFilename: document.getElementById('templateType').value,
                 position: 'BEST',
                 // UPDATED: Hardcoded material value
                 material: 'Ad. enclosed/Download/By Mail',
@@ -391,6 +414,9 @@
             const { PDFDocument, rgb, StandardFonts } = PDFLib;
 
             // Load the PDF template
+            // Fetch the SPECIFIC PDF based on user selection
+            const response = await fetch(data.templateFilename);
+            const pdfTemplate = await response.arrayBuffer();
             const pdfDoc = await PDFDocument.load(pdfTemplate);
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
