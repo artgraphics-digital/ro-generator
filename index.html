@@ -504,13 +504,35 @@
             });
 
             // Size
-            firstPage.drawText(data.size, {
+            // 1. Separate the main size text from the suffix
+            // We remove " (B/W)" from the data.size string first if it exists
+            let mainSizeText = data.size;
+            let suffix = "";
+            
+            if (data.size.endsWith(" (B/W)")) {
+                mainSizeText = data.size.replace(" (B/W)", "");
+                suffix = "  (B/W)";
+            }
+            // 3. Draw Main Size Text in RED
+            firstPage.drawText(mainSizeText, {
                 x: 100,
                 y: 413,
                 size: textConfigC.fontSize,
                 font: boldFont,
                 color: textConfigC.color
             });
+            // 4. If we have a suffix, draw it in BLACK right after the red text
+            if (suffix) {
+                // Measure width of the red text so we know where to start the black text
+                const mainTextWidth = boldFont.widthOfTextAtSize(mainSizeText, textConfigC.fontSize);
+                firstPage.drawText(suffix, {
+                    x: 100 + mainTextWidth, // Start exactly where red text ends
+                    y: 413,
+                    size: textConfigC.fontSize,
+                    font: boldFont,
+                    color: textConfigB.color       // <--- BLACK COLOR
+                });
+            }
 
             // Position
             firstPage.drawText(data.position, {
