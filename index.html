@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,7 +26,7 @@
         .container {
             background: white;
             border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 40px;
             max-width: 600px;
             width: 100%;
@@ -175,7 +176,7 @@
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
+            border: 3px solid rgba(255, 255, 255, .3);
             border-radius: 50%;
             border-top-color: white;
             animation: spin 1s ease-in-out infinite;
@@ -183,10 +184,13 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -201,44 +205,79 @@
 
         <!-- 1. Template Selection -->
         <div class="form-group">
-            <label for="templateType">RO Type *</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label for="templateType" style="margin-bottom: 0;">RO Type *</label>
+                <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                    <input type="checkbox" id="retain_templateType"> Retain
+                </label>
+            </div>
             <select id="templateType" required>
                 <option value="RO_With_Remarks.pdf">Small(Remarks)</option>
                 <option value="RO_No_Remarks.pdf">Big(No Remarks)</option>
             </select>
         </div>
-        
+
         <!-- 2. B/W Checkbox -->
         <div class="form-group">
-            <label style="display: flex; align-items: center; gap: 10px; font-weight: normal; cursor: pointer;">
-                <input type="checkbox" id="isBW" style="width: auto;"> 
-                <strong>(B/W)?</strong>
-            </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="display: flex; align-items: center; gap: 10px; font-weight: normal; cursor: pointer;">
+                    <input type="checkbox" id="isBW" style="width: auto;">
+                    <strong>(B/W)?</strong>
+                </label>
+                <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                    <input type="checkbox" id="retain_isBW"> Retain
+                </label>
+            </div>
         </div>
 
         <form id="releaseOrderForm">
             <div class="form-group">
-                <label for="publicationName">Publication Name *</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="publicationName" style="margin-bottom: 0;">Publication Name *</label>
+                    <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                        <input type="checkbox" id="retain_publicationName"> Retain
+                    </label>
+                </div>
                 <input type="text" id="publicationName" required placeholder="e.g., The Times of India">
             </div>
 
             <div class="form-group">
-                <label for="edition">Edition/Place *</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="edition" style="margin-bottom: 0;">Edition/Place *</label>
+                    <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                        <input type="checkbox" id="retain_edition"> Retain
+                    </label>
+                </div>
                 <input type="text" id="edition" required placeholder="e.g., Lucknow Edition">
             </div>
 
             <div class="form-group">
-                <label for="client">Client Name *</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="client" style="margin-bottom: 0;">Client Name *</label>
+                    <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                        <input type="checkbox" id="retain_client"> Retain
+                    </label>
+                </div>
                 <input type="text" id="client" required placeholder="e.g., ABC Company Pvt. Ltd.">
             </div>
 
             <div class="form-group">
-                <label for="scheduledDate">Scheduled Date *</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="scheduledDate" style="margin-bottom: 0;">Scheduled Date *</label>
+                    <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                        <input type="checkbox" id="retain_scheduledDate"> Retain
+                    </label>
+                </div>
                 <input type="date" id="scheduledDate" required>
             </div>
 
             <div class="form-group">
-                <label>Size (in CM) *</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="size" style="margin-bottom: 0;">Size (in CM) *</label>
+                    <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                        <input type="checkbox" id="retain_size"> Retain
+                    </label>
+                </div>
                 <div class="size-input-group">
                     <input type="number" id="sizeWidth" required placeholder="Width" min="1" step="0.1">
                     <span>X</span>
@@ -250,9 +289,13 @@
             <!-- REMOVED: Material Dropdown -->
 
             <div class="form-group">
-                <label for="rate">Rate *</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="rate" style="margin-bottom: 0;">Rate *</label>
+                    <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                        <input type="checkbox" id="retain_rate"> Retain
+                    </label>
+                </div>
                 <input type="text" id="rate" required placeholder="e.g., 2000 - less 20%">
-                <div class="helper-text">GST will be added automatically</div>
             </div>
 
             <button type="submit" class="btn-generate" id="generateBtn">
@@ -320,6 +363,38 @@
             });
         }
 
+        // ==================== RESET FORM SMARTLY ====================
+        function resetFormSmartly() {
+            // List of all input IDs you want to manage
+            const fieldIds = [
+                'publicationName',
+                'edition',
+                'client',
+                'scheduledDate',
+                'sizeWidth',
+                'sizeHeight',
+                'rate',
+                'isBW', // Checkbox for B/W
+                'templateType'
+            ];
+
+            fieldIds.forEach(id => {
+                // 1. Check if the "Retain" checkbox exists and is checked
+                const retainCheckbox = document.getElementById('retain_' + id);
+                const shouldRetain = retainCheckbox && retainCheckbox.checked;
+
+                // 2. If NOT retaining, clear the field
+                if (!shouldRetain) {
+                    const field = document.getElementById(id);
+                    if (field.type === 'checkbox') {
+                        field.checked = false;
+                    } else {
+                        field.value = '';
+                    }
+                }
+            });
+        }
+
         // ==================== GENERATE RELEASE ORDER ====================
         async function generateReleaseOrder() {
             const btn = document.getElementById('generateBtn');
@@ -343,7 +418,7 @@
                 showStatus('success', `Release Order ${nextRONumber} generated successfully!`);
 
                 // Reset form and fetch new R.O. number
-                document.getElementById('releaseOrderForm').reset();
+                resetFormSmartly();
                 await fetchNextRONumber();
 
             } catch (error) {
@@ -442,10 +517,10 @@
 
             // R.O. Number
             drawCenteredText(
-                firstPage, 
-                data.roNumber, 
+                firstPage,
+                data.roNumber,
                 boldFont,        // Pass the font instance
-                textConfigB.fontSize, 
+                textConfigB.fontSize,
                 644,                  // Y coordinate
                 360,                   // Left boundary (xStart)
                 500,                  // Right boundary (xEnd)
@@ -454,10 +529,10 @@
 
             // Date
             drawCenteredText(
-                firstPage, 
-                data.date, 
+                firstPage,
+                data.date,
                 boldFont,        // Pass the font instance
-                textConfigB.fontSize, 
+                textConfigB.fontSize,
                 619,                  // Y coordinate
                 350,                   // Left boundary (xStart)
                 500,                  // Right boundary (xEnd)
@@ -466,10 +541,10 @@
 
             // Publication Name (Line 1)
             drawCenteredText(
-                firstPage, 
-                data.publicationName, 
+                firstPage,
+                data.publicationName,
                 boldFont,        // Pass the font instance
-                textConfig.fontSize, 
+                textConfig.fontSize,
                 589,                  // Y coordinate
                 65,                   // Left boundary (xStart)
                 425,                  // Right boundary (xEnd)
@@ -478,10 +553,10 @@
 
             // Edition (Line 2)
             drawCenteredText(
-                firstPage, 
-                data.edition, 
+                firstPage,
+                data.edition,
                 boldFont,        // Pass the font instance
-                textConfig.fontSize, 
+                textConfig.fontSize,
                 564,                  // Y coordinate
                 65,                   // Left boundary (xStart)
                 425,                  // Right boundary (xEnd)
@@ -511,7 +586,7 @@
             // We remove " (B/W)" from the data.size string first if it exists
             let mainSizeText = data.size;
             let suffix = "";
-            
+
             if (data.size.endsWith(" (B/W)")) {
                 mainSizeText = data.size.replace(" (B/W)", "");
                 suffix = "  (B/W)";
@@ -613,4 +688,5 @@
         }
     </script>
 </body>
+
 </html>
