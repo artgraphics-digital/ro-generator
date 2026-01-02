@@ -230,6 +230,34 @@
             </div>
         </div>
 
+        <!-- Mode Toggle -->
+        <div
+            style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e9ecef;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 16px;">Mode: <span id="modeLabel" style="color: #667eea;">Create
+                        New</span></h3>
+                <button type="button" id="toggleModeBtn" onclick="toggleEditMode()"
+                    style="padding: 5px 10px; font-size: 12px; cursor: pointer;">
+                    Switch to Correction Mode
+                </button>
+            </div>
+
+            <!-- Search Box (Hidden by default) -->
+            <div id="correctionSearch"
+                style="display: none; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
+                <div class="form-group">
+                    <label>Enter RO Number to Correct</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="searchRoNumber" placeholder="e.g. 25-26/0002">
+                        <button type="button" onclick="fetchROData()"
+                            style="background: #333; color: white; border: none; padding: 0 15px; border-radius: 5px; cursor: pointer;">
+                            Load
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <form id="releaseOrderForm">
             <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -313,6 +341,7 @@
 
         // ==================== GLOBAL VARIABLES ====================
         let pdfTemplate = null;
+        let isEditMode = false;
         // let nextRONumber = null;
 
         // ==================== INITIALIZATION ====================
@@ -363,6 +392,88 @@
             });
         }
 
+        // ==================== HELPER FUNCTIONS ====================
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const modeLabel = document.getElementById('modeLabel');
+            const toggleBtn = document.getElementById('toggleModeBtn');
+            const searchBox = document.getElementById('correctionSearch');
+            const generateBtn = document.getElementById('generateBtn');
+            const roDisplay = document.getElementById('roNumberDisplay');
+
+            if (isEditMode) {
+                modeLabel.textContent = "Correction / Edit";
+                modeLabel.style.color = "#e53e3e"; // Red
+                toggleBtn.textContent = "Switch to Create New";
+                searchBox.style.display = "block";
+                generateBtn.textContent = "Update & Re-Generate PDF";
+                generateBtn.style.background = "linear-gradient(135deg, #e53e3e 0%, #c53030 100%)"; // Red button
+                roDisplay.style.opacity = "0.5"; // Dim the next number display
+            } else {
+                modeLabel.textContent = "Create New";
+                modeLabel.style.color = "#667eea";
+                toggleBtn.textContent = "Switch to Correction Mode";
+                searchBox.style.display = "none";
+                generateBtn.textContent = "Generate Release Order";
+                generateBtn.style.background = ""; // Reset gradient
+                roDisplay.style.opacity = "1";
+                document.getElementById('releaseOrderForm').reset();
+                fetchNextRONumber(); // Refresh next number
+            }
+        }
+
+        async function fetchROData() {
+            const roInput = document.getElementById('searchRoNumber').value.trim();
+            if (!roInput) return alert("Please enter an RO Number");
+
+            const btn = event.target;
+            btn.textContent = "Loading...";
+
+            try {
+                const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?action=fetchRO&roNumber=${encodeURIComponent(roInput)}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    populateForm(result.data);
+                    showStatus('info', 'Data loaded. Make your corrections.');
+                    // Override the global nextRONumber so the PDF generator uses the OLD number
+                    nextRONumber = result.data.roNumber;
+                    document.getElementById('nextRONumber').textContent = nextRONumber + " (Editing)";
+                } else {
+                    alert("RO Number not found!");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error fetching data");
+            } finally {
+                btn.textContent = "Load";
+            }
+        }
+
+        function populateForm(data) {
+            document.getElementById('publicationName').value = data.publicationName;
+            document.getElementById('edition').value = data.edition;
+            document.getElementById('client').value = data.client;
+
+            // Parse Date for Input (Spreadsheet date format might differ)
+            // You might need date parsing logic here depending on how Google Sheets returns the date
+            // For now, assuming standard string or ISO
+
+            // Rate
+            document.getElementById('rate').value = data.rate.split(' + GST')[0]; // Strip suffix to let user edit raw value
+
+            // Attempt to parse Size back to width/height
+            // Format: "26CM (W) X 33CM (H)..."
+            try {
+                const parts = data.size.match(/([\d.]+)CM \(W\) X ([\d.]+)CM \(H\)/);
+                if (parts) {
+                    document.getElementById('sizeWidth').value = parts[1];
+                    document.getElementById('sizeHeight').value = parts[2];
+                }
+                document.getElementById('isBW').checked = data.size.includes("(B/W)");
+            } catch (e) { console.log("Could not auto-parse size"); }
+        }
+
         // ==================== RESET FORM SMARTLY ====================
         function resetFormSmartly() {
             // List of all input IDs you want to manage
@@ -408,7 +519,7 @@
                 const pdfBytes = await fillPDFTemplate(formData);
 
                 // Download PDF
-                downloadPDF(pdfBytes, `RO_${nextRONumber.replace(/\//g, '-')}.pdf`);
+                downloadPDF(pdfBytes, `${formData.publicationName}-${nextRONumber.split('/')[1]}.pdf`);
 
                 // Save to Google Sheets
                 await saveToGoogleSheets(formData);
@@ -654,6 +765,8 @@
 
         // ==================== SAVE TO GOOGLE SHEETS ====================
         async function saveToGoogleSheets(data) {
+            const action = isEditMode ? 'updateReleaseOrder' : 'saveReleaseOrder'; // <--- DYNAMIC ACTION
+
             try {
                 const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                     method: 'POST',
@@ -662,12 +775,12 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        action: 'saveReleaseOrder',
+                        action: action,
                         data: data
                     })
                 });
 
-                console.log('Data sent to Google Sheets');
+                console.log('Data sent to Google Sheets (' + action + ')');
             } catch (error) {
                 console.error('Error saving to Google Sheets:', error);
                 throw new Error('Could not save to tracking sheet');
