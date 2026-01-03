@@ -456,8 +456,31 @@
             document.getElementById('client').value = data.client;
 
             // Parse Date for Input (Spreadsheet date format might differ)
-            // You might need date parsing logic here depending on how Google Sheets returns the date
-            // For now, assuming standard string or ISO
+            // Handle Scheduled Date
+            if (data.scheduledDate) {
+                // Response format: "03/01/2026  \"MUST\""
+                let rawDateStr = data.scheduledDate.toString();
+
+                // 1. Remove "MUST", quotes, and extra whitespace
+                // Result: "03/01/2026"
+                let cleanDateStr = rawDateStr.replace(/["']?MUST["']?/i, '').trim();
+
+                // 2. Split by "/"
+                const parts = cleanDateStr.split('/'); // ["03", "01", "2026"]
+
+                if (parts.length === 3) {
+                    // 3. Reformat to YYYY-MM-DD for the HTML input
+                    // parts[2] is Year (2026)
+                    // parts[1] is Month (01)
+                    // parts[0] is Day (03)
+                    const formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+
+                    // Assign to input
+                    document.getElementById('scheduledDate').value = formattedDate;
+                } else {
+                    console.warn("Could not parse date:", cleanDateStr);
+                }
+            }
 
             // Rate
             document.getElementById('rate').value = data.rate.split(' + GST')[0]; // Strip suffix to let user edit raw value
