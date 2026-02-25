@@ -292,6 +292,16 @@
 
             <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="generationDate" style="margin-bottom: 0;">Generation Date *</label>
+                    <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                        <input type="checkbox" id="retain_generationDate" checked> Retain
+                    </label>
+                </div>
+                <input type="date" id="generationDate" required>
+            </div>
+
+            <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <label for="scheduledDate" style="margin-bottom: 0;">Scheduled Date *</label>
                     <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
                         <input type="checkbox" id="retain_scheduledDate" checked> Retain
@@ -348,6 +358,7 @@
         // ==================== INITIALIZATION ====================
         document.addEventListener('DOMContentLoaded', async () => {
             // await loadPDFTemplate();
+            document.getElementById('generationDate').value = getTodayYYYYMMDD(); // Set default date
             await fetchNextRONumber();
             setupFormSubmission();
         });
@@ -419,6 +430,7 @@
                 generateBtn.style.background = ""; // Reset gradient
                 roDisplay.style.opacity = "1";
                 document.getElementById('releaseOrderForm').reset();
+                document.getElementById('generationDate').value = getTodayYYYYMMDD(); // <-- Re-apply today's date
                 fetchNextRONumber(); // Refresh next number
             }
         }
@@ -483,6 +495,19 @@
                 }
             }
 
+            // Handle Generation Date (Parse from DD/MM/YYYY to YYYY-MM-DD)
+            if (data.date) {
+                let cleanGenDate = data.date.toString().trim();
+                const genParts = cleanGenDate.split('/'); // ["DD", "MM", "YYYY"]
+                
+                if (genParts.length === 3) {
+                    const formattedGenDate = `${genParts[2]}-${genParts[1].padStart(2, '0')}-${genParts[0].padStart(2, '0')}`;
+                    document.getElementById('generationDate').value = formattedGenDate;
+                } else {
+                    console.warn("Could not parse generation date:", cleanGenDate);
+                }
+            }
+
             // Rate
             document.getElementById('rate').value = data.rate.split(' + GST')[0]; // Strip suffix to let user edit raw value
 
@@ -507,10 +532,20 @@
             }
         }
 
+        // Helper to format today's date as YYYY-MM-DD for the HTML input
+        function getTodayYYYYMMDD() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
         // ==================== RESET FORM SMARTLY ====================
         function resetFormSmartly() {
             // List of all input IDs you want to manage
             const fieldIds = [
+                'generationDate',
                 'publicationName',
                 'edition',
                 'client',
@@ -531,6 +566,8 @@
                     const field = document.getElementById(id);
                     if (field.type === 'checkbox') {
                         field.checked = false;
+                    } else if (id === 'generationDate') {
+                        field.value = getTodayYYYYMMDD(); // Reset to today, not blank
                     } else {
                         field.value = '';
                     }
@@ -590,13 +627,17 @@
                 year: 'numeric'
             });
 
+            const genDateVal = document.getElementById('generationDate').value;
+            const genDateObj = new Date(genDateVal);
+            const formattedGenDate = genDateObj.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+
             return {
                 roNumber: nextRONumber,
-                date: new Date().toLocaleDateString('en-IN', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric'
-                }),
+                date: formattedGenDate, // Now pulls from the UI instead of new Date()
                 publicationName: document.getElementById('publicationName').value,
                 edition: document.getElementById('edition').value,
                 client: document.getElementById('client').value,
