@@ -329,6 +329,16 @@
 
             <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="position" style="margin-bottom: 0;">Position *</label>
+                    <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
+                        <input type="checkbox" id="retain_position" checked> Retain
+                    </label>
+                </div>
+                <input type="text" id="position" required value="BEST" placeholder="e.g., BEST, Front Page">
+            </div>
+
+            <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <label for="rate" style="margin-bottom: 0;">Rate *</label>
                     <label style="font-size: 12px; font-weight: normal; cursor: pointer; color: #666;">
                         <input type="checkbox" id="retain_rate" checked> Retain
@@ -467,6 +477,11 @@
             document.getElementById('publicationName').value = data.publicationName;
             document.getElementById('edition').value = data.edition;
             document.getElementById('client').value = data.client;
+            
+            // Populate Position
+            if (data.position) {
+                document.getElementById('position').value = data.position;
+            }
 
             // Parse Date for Input (Spreadsheet date format might differ)
             // Handle Scheduled Date
@@ -551,6 +566,7 @@
                 'client',
                 'scheduledDate',
                 'size',
+                'position',
                 'rate',
                 'isBW', // Checkbox for B/W
                 'templateType'
@@ -568,6 +584,8 @@
                         field.checked = false;
                     } else if (id === 'generationDate') {
                         field.value = getTodayYYYYMMDD(); // Reset to today, not blank
+                    } else if (id === 'position') {
+                        field.value = 'BEST'; // <-- Reset to 'BEST' instead of blank
                     } else {
                         field.value = '';
                     }
@@ -648,7 +666,7 @@
                 // Add template filename to data so we know which one to load
                 templateFilename: document.getElementById('templateType').value,
                 templateType: document.getElementById('templateType').value,
-                position: 'BEST',
+                position: document.getElementById('position').value,
                 // UPDATED: Hardcoded material value
                 material: 'Ad. enclosed/Download/By Mail',
                 rate: document.getElementById('rate').value + ' + GST as applicable',
