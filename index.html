@@ -632,11 +632,8 @@
         // ==================== FETCH NEXT R.O. NUMBER ====================
         async function fetchNextRONumber() {
             try {
-                // Added redirect: 'follow' for strict iOS Safari privacy settings
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL + '?action=getNextRONumber', {
-                    method: 'GET',
-                    redirect: 'follow'
-                });
+                // Reverted to the simple fetch! Google Apps Script rejects complex fetch headers.
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL + '?action=getNextRONumber');
                 const data = await response.json();
 
                 if (data.success) {
