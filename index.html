@@ -632,7 +632,11 @@
         // ==================== FETCH NEXT R.O. NUMBER ====================
         async function fetchNextRONumber() {
             try {
-                const response = await fetch(GOOGLE_APPS_SCRIPT_URL + '?action=getNextRONumber');
+                // Added redirect: 'follow' for strict iOS Safari privacy settings
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL + '?action=getNextRONumber', {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
                 const data = await response.json();
 
                 if (data.success) {
@@ -846,26 +850,27 @@
                 // Collect form data
                 const formData = collectFormData();
 
-                // Generate PDF (Wait for it to build in memory)
+                // Generate PDF locally (fast enough to keep iOS Safari happy)
                 const pdfBytes = await fillPDFTemplate(formData);
 
-                // 1. SAVE TO GOOGLE SHEETS FIRST
-                // We must do this before the PDF download, otherwise iOS Safari 
-                // suspends the script when the download prompt appears!
-                await saveToGoogleSheets(formData);
+                // 1. START GOOGLE SHEETS SAVE IN BACKGROUND (Do NOT 'await' it here!)
+                // This fires the network request but doesn't pause the script.
+                const savePromise = saveToGoogleSheets(formData);
 
-                // 2. DOWNLOAD PDF SECOND
+                // 2. TRIGGER PDF SHARE IMMEDIATELY
+                // Because this happens right after the tap, Safari allows the Share Menu!
                 await downloadPDF(pdfBytes, `${formData.publicationName}-${nextRONumber.split('/')[1]}.pdf`);
 
-                // Show success message
-                showStatus('success', `Release Order ${nextRONumber} generated successfully!`);
+                // 3. NOW WAIT FOR GOOGLE SHEETS TO FINISH
+                await savePromise;
 
-                // Reset form and fetch new R.O. number
+                // Show success message and reset
+                showStatus('success', `Release Order ${nextRONumber} generated successfully!`);
                 resetFormSmartly();
                 await fetchNextRONumber();
 
             } catch (error) {
-                showStatus('error', 'Failed to generate release order: ' + error.message);
+                showStatus('error', 'Failed: ' + error.message);
                 console.error('Error generating R.O.:', error);
             } finally {
                 btn.disabled = false;
@@ -1091,42 +1096,52 @@
             return pdfBytes;
         }
 
-        // ==================== DOWNLOAD PDF ====================
+        // ==================== DOWNLOAD / SHARE PDF ====================
         async function downloadPDF(pdfBytes, filename) {
             const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-
-            // Convert the Blob to a File object, which the Web Share API requires
             const file = new File([blob], filename, { type: 'application/pdf' });
 
-            // 1. TRY MOBILE NATIVE SHARE (iOS Safari / Android)
+            // 1. TRY MOBILE NATIVE SHARE (iOS Safari)
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
                         files: [file],
                         title: 'Release Order',
                     });
-                    console.log('File handed off to native OS share sheet.');
-                    return; // Exit function if successful
+                    return; // Exit function if user shared/saved successfully
                 } catch (error) {
-                    console.log('Share failed or was cancelled by user:', error);
-                    // If the user just swiped the share sheet away, stop here.
+                    // If user just swiped the menu down, stop here.
                     if (error.name === 'AbortError') return;
                 }
             }
 
-            // 2. FALLBACK FOR DESKTOP (Standard browser download)
+            // 2. FALLBACK FOR DESKTOP
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.href = url;
             link.download = filename;
+            link.target = '_blank'; // Ensures it doesn't overwrite the current UI if download fails
 
-            // Append to body (required for Firefox & some older browsers)
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
 
-            // Clean up memory after a slight delay
             setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
+
+        // 2. FALLBACK FOR DESKTOP (Standard browser download)
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.download = filename;
+
+        // Append to body (required for Firefox & some older browsers)
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Clean up memory after a slight delay
+        setTimeout(() => URL.revokeObjectURL(url), 100);
         }
 
         // ==================== SAVE TO GOOGLE SHEETS ====================
