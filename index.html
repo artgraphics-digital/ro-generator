@@ -517,7 +517,10 @@
                                 <input type="checkbox" class="retain-toggle" id="retain_client" checked>
                             </label>
                         </div>
-                        <input type="text" id="client" required placeholder="e.g., ABC Company Pvt. Ltd.">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="client" required placeholder="Main Name (Red)" style="flex: 2;">
+                            <input type="text" id="clientExtra" placeholder="Extra (Black)" style="flex: 1;">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -528,7 +531,7 @@
                                 <input type="checkbox" class="retain-toggle" id="retain_position" checked>
                             </label>
                         </div>
-                        <input type="text" id="position" required value="BEST" placeholder="e.g., BEST, Front Page">
+                        <input type="text" id="position" required value="Page 4/5" placeholder="e.g., BEST, Front Page">
                     </div>
                 </div>
             </div>
@@ -554,7 +557,10 @@
                                 <input type="checkbox" class="retain-toggle" id="retain_scheduledDate" checked>
                             </label>
                         </div>
-                        <input type="date" id="scheduledDate" required>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="date" id="scheduledDate" required style="flex: 2;">
+                            <input type="text" id="dateExtra" placeholder="Extra (Black)" style="flex: 1;">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -757,7 +763,19 @@
             const fieldIds = ['generationDate', 'publicationName', 'edition', 'client', 'scheduledDate', 'sizeWidth', 'sizeHeight', 'position', 'rate', 'isBW', 'templateType'];
 
             fieldIds.forEach(id => {
-                const retainCheckboxId = id === 'sizeWidth' || id === 'sizeHeight' ? 'retain_size' : 'retain_' + id;
+                // Map the correct Retain checkbox to each field
+                let retainCheckboxId;
+
+                if (id === 'sizeWidth' || id === 'sizeHeight') {
+                    retainCheckboxId = 'retain_size';
+                } else if (id === 'clientExtra') {
+                    retainCheckboxId = 'retain_client'; // Ties extra field to the Client retain toggle
+                } else if (id === 'dateExtra') {
+                    retainCheckboxId = 'retain_scheduledDate'; // Ties extra field to the Date retain toggle
+                } else {
+                    retainCheckboxId = 'retain_' + id;
+                }
+
                 const retainCheckbox = document.getElementById(retainCheckboxId);
                 const shouldRetain = retainCheckbox && retainCheckbox.checked;
 
@@ -769,7 +787,7 @@
                     } else if (id === 'generationDate') {
                         field.value = getTodayYYYYMMDD();
                     } else if (id === 'position') {
-                        field.value = 'BEST';
+                        field.value = 'Page 4/5';
                     } else {
                         field.value = '';
                     }
@@ -829,7 +847,9 @@
                 publicationName: document.getElementById('publicationName').value,
                 edition: document.getElementById('edition').value,
                 client: document.getElementById('client').value,
+                clientExtra: document.getElementById('clientExtra').value, // New field
                 scheduledDate: formattedScheduledDate + '  \"MUST\"',
+                dateExtra: document.getElementById('dateExtra').value,   // New field
                 scheduledDateSS: formattedScheduledDate,
                 size: `${width}CM (W) X ${height}CM (H) = ${sqcm} SQCM ${bwSuffix}`,
                 sizeSS: `${sqcm}`,
@@ -866,7 +886,18 @@
             drawCenteredText(firstPage, data.edition, boldFont, textConfig.fontSize, 564, 65, 425, textConfig.color);
 
             firstPage.drawText(data.client, { x: 110, y: 490, size: textConfigC.fontSize, font: boldFont, color: textConfigC.color });
+            if (data.clientExtra) {
+                const primaryWidth = boldFont.widthOfTextAtSize(data.client, textConfigC.fontSize);
+                // Draw extra text in Black starting after the Red text (with 5px padding)
+                firstPage.drawText(data.clientExtra, { x: clientX + primaryWidth + 5, y: clientY, size: textConfigC.fontSize, font: boldFont, color: textConfigB.color });
+            }
+
             firstPage.drawText(data.scheduledDate, { x: 155, y: 452, size: textConfigC.fontSize, font: boldFont, color: textConfigC.color });
+            if (data.dateExtra) {
+                const dateWidth = boldFont.widthOfTextAtSize(data.scheduledDate, textConfigC.fontSize);
+                // Draw extra text in Black starting after the Red text (with 5px padding)
+                firstPage.drawText(data.dateExtra, { x: dateX + dateWidth + 5, y: dateY, size: textConfigC.fontSize, font: boldFont, color: textConfigB.color });
+            }
 
             let mainSizeText = data.size.replace(" (B/W)", "");
             let suffix = data.size.endsWith(" (B/W)") ? "  (B/W)" : "";
@@ -887,7 +918,7 @@
         // ==================== DOWNLOAD / SHARE PDF ====================
         async function downloadPDF(pdfBytes, filename) {
             const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            
+
             // 1. Detect specifically if the user is on an Apple iOS device (iPhone/iPad)
             // We use this because Android handles normal downloads perfectly fine!
             const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent);
@@ -910,12 +941,12 @@
             const url = URL.createObjectURL(blob);
             link.href = url;
             link.download = filename;
-            link.target = '_blank'; 
-            
-            document.body.appendChild(link); 
+            link.target = '_blank';
+
+            document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(url), 100); 
+            setTimeout(() => URL.revokeObjectURL(url), 100);
         }
 
         // ==================== SAVE TO GOOGLE SHEETS ====================
