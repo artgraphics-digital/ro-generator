@@ -1,0 +1,16 @@
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+
+# Route /api/* to Netlify Functions
+[[redirects]]
+  from = "/api/config"
+  to   = "/.netlify/functions/config"
+  status = 200
+
+[[redirects]]
+  from = "/api/extract"
+  to   = "/.netlify/functions/extract"
+  status = 200
