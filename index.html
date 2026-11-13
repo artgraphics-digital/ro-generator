@@ -7,8 +7,9 @@
     <title>Release Order Generator - Artgraphics</title>
     <link rel="icon" type="image/x-icon" href="Logo.ico">
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
         * {
             margin: 0;
@@ -32,18 +33,16 @@
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.02);
             padding: 40px;
-            max-width: 750px;
+            max-width: 780px;
             width: 100%;
         }
 
-        /* Header & Status */
-        /* Header & Status */
+        /* Header */
         .header {
             text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 25px;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
             border-bottom: 1px dashed #cbd5e1;
-            /* Subtle divider to separate header from content */
         }
 
         .header h1 {
@@ -54,7 +53,6 @@
             margin-bottom: 2px;
         }
 
-        /* Give the 'Art' in Artgraphics the primary brand color */
         .header h1 span {
             color: #ea580c;
         }
@@ -65,7 +63,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1.5px;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
 
         .header .app-badge {
@@ -77,10 +75,42 @@
             color: #475569;
             padding: 6px 16px;
             border-radius: 9999px;
-            /* Creates a pill shape */
             font-size: 13px;
             font-weight: 600;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        }
+
+        /* Mode Switcher Tabs */
+        .tab-switcher {
+            display: flex;
+            background: #e2e8f0;
+            padding: 5px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            gap: 6px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: transparent;
+            color: #64748b;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #0f172a;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
         }
 
         .top-bar {
@@ -113,7 +143,6 @@
             color: #4f46e5;
         }
 
-        /* Mode Switcher */
         .mode-controls {
             text-align: right;
         }
@@ -160,7 +189,6 @@
             flex-direction: column;
         }
 
-        /* Header for inputs with Retain Toggle */
         .label-header {
             display: flex;
             justify-content: space-between;
@@ -225,7 +253,8 @@
         input[type="text"],
         input[type="number"],
         input[type="date"],
-        select {
+        select,
+        textarea {
             width: 100%;
             padding: 10px 14px;
             border: 1px solid #cbd5e1;
@@ -238,7 +267,8 @@
         }
 
         input:focus,
-        select:focus {
+        select:focus,
+        textarea:focus {
             outline: none;
             border-color: #4f46e5;
             background: white;
@@ -264,7 +294,7 @@
             margin-top: 6px;
         }
 
-        /* Primary Button */
+        /* Buttons */
         .btn-generate {
             width: 100%;
             background: #4f46e5;
@@ -294,6 +324,27 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        .btn-batch-extract {
+            width: 100%;
+            background: #ea580c;
+            color: white;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 15px;
+            box-shadow: 0 4px 6px rgba(234, 88, 12, 0.2);
+        }
+
+        .btn-batch-extract:hover {
+            background: #c2410c;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px rgba(234, 88, 12, 0.3);
         }
 
         /* Correction Search Box */
@@ -372,6 +423,373 @@
             }
         }
 
+        /* Safe Dev Mode Bar */
+        .safe-mode-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fefce8;
+            border: 1px solid #fde047;
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 22px;
+            transition: all 0.3s ease;
+        }
+
+        .safe-mode-bar.live-mode {
+            background: #fef2f2;
+            border-color: #fca5a5;
+        }
+
+        .safe-mode-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .safe-mode-badge {
+            font-size: 13px;
+            font-weight: 700;
+            color: #854d0e;
+        }
+
+        .safe-mode-bar.live-mode .safe-mode-badge {
+            color: #991b1b;
+        }
+
+        .safe-mode-desc {
+            font-size: 11px;
+            color: #713f12;
+        }
+
+        .safe-mode-bar.live-mode .safe-mode-desc {
+            color: #7f1d1d;
+        }
+
+        .safe-mode-toggle {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .safe-mode-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .safe-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ef4444;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .safe-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .safe-mode-toggle input:checked + .safe-slider {
+            background-color: #10b981;
+        }
+
+        .safe-mode-toggle input:checked + .safe-slider:before {
+            transform: translateX(20px);
+        }
+
+        /* ==================== BATCH MODE STYLES ==================== */
+        .batch-banner {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .batch-banner-text {
+            font-size: 13px;
+            color: #166534;
+            font-weight: 500;
+        }
+
+        .batch-banner-text strong {
+            color: #14532d;
+        }
+
+        .api-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            background: white;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            cursor: pointer;
+        }
+
+        /* File Dropzone */
+        .dropzone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+
+        .dropzone:hover,
+        .dropzone.dragover {
+            border-color: #4f46e5;
+            background: #eef2ff;
+        }
+
+        .dropzone-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .dropzone-text {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .dropzone-subtext {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .file-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .file-badge button {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        /* Preview Table Card */
+        .preview-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .preview-header h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .preview-table-wrapper {
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            margin-bottom: 15px;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .preview-table th {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .preview-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        .preview-table input {
+            padding: 6px 10px;
+            font-size: 13px;
+            background: white;
+            border: 1px solid #cbd5e1;
+        }
+
+        .btn-del-row {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .btn-del-row:hover {
+            background: #fca5a5;
+        }
+
+        .btn-add-row {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px dashed #cbd5e1;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-add-row:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        .batch-summary-pill {
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 12px 0;
+            display: inline-block;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: #4f46e5;
+            transition: width 0.25s ease;
+        }
+
+        .progress-status-text {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* API Key Modal */
+        #apiKeyModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 12px;
+            max-width: 480px;
+            width: 100%;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-box h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .modal-box p {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
         /* ==================== MOBILE RESPONSIVENESS ==================== */
         @media (max-width: 600px) {
             body {
@@ -386,13 +804,11 @@
                 font-size: 26px;
             }
 
-            /* Stack the 2-column grid into a single column */
             .form-row {
                 grid-template-columns: 1fr;
                 gap: 16px;
             }
 
-            /* Stack the Top Bar */
             .top-bar {
                 flex-direction: column;
                 align-items: stretch;
@@ -408,12 +824,18 @@
             .mode-controls {
                 text-align: center;
             }
+
+            .tab-btn {
+                font-size: 12px;
+                padding: 8px 10px;
+            }
         }
     </style>
 </head>
 
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
             <h1><span>Art</span>graphics</h1>
             <div class="tagline">Advertising Consultants</div>
@@ -422,186 +844,404 @@
             </div>
         </div>
 
+        <!-- Mode Switcher Tabs -->
+        <div class="tab-switcher">
+            <button type="button" class="tab-btn active" id="tabBtnSingle" onclick="switchAppTab('single')">
+                ✏️ Single Release Order
+            </button>
+            <button type="button" class="tab-btn" id="tabBtnBatch" onclick="switchAppTab('batch')">
+                ⚡ Batch Automation (Upload PDF)
+            </button>
+        </div>
+
+        <!-- Safe Dev Mode Banner & Toggle -->
+        <div class="safe-mode-bar" id="safeModeBar">
+            <div class="safe-mode-info">
+                <span class="safe-mode-badge" id="safeModeBadge">🛡️ Safe Dev Mode: ON (Sheet Protected)</span>
+                <span class="safe-mode-desc" id="safeModeDesc">Google Sheets updates are blocked. PDFs & ZIPs will be generated safely without modifying production data.</span>
+            </div>
+            <label class="safe-mode-toggle" title="Toggle Safe Mode / Live Sheet Updates">
+                <input type="checkbox" id="safeModeCheckbox" checked onchange="toggleSafeMode(this.checked)">
+                <span class="safe-slider"></span>
+            </label>
+        </div>
+
+        <!-- ==================== TOP BAR: RO NUMBER & EDIT MODE ==================== -->
         <div class="top-bar">
             <div class="ro-number-display" id="roNumberDisplay">
-                <span class="label">Next R.O. Number</span>
+                <span class="label" id="roNumberLabel">Next R.O. Number</span>
                 <span class="number" id="nextRONumber">Loading...</span>
             </div>
-            <div class="mode-controls">
+            <div class="mode-controls" id="modeControlsSingle">
                 <h3>Mode: <span id="modeLabel" style="color: #4f46e5; font-weight: 700;">Create New</span></h3>
                 <button type="button" id="toggleModeBtn" onclick="toggleEditMode()">
                     Switch to Correction Mode
                 </button>
             </div>
-        </div>
-
-        <div id="correctionSearch" style="display: none;">
-            <div class="form-group" style="margin: 0;">
-                <div class="label-header">
-                    <label>Enter RO Number to Correct</label>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="searchRoNumber" placeholder="e.g. 25-26/0002">
-                    <button type="button" onclick="fetchROData()">Load</button>
-                </div>
+            <div class="mode-controls" id="modeControlsBatch" style="display: none;">
+                <h3>Mode: <span style="color: #ea580c; font-weight: 700;">Batch AI Pipeline</span></h3>
+                <span class="api-badge" onclick="openApiKeyModal()" id="apiKeyBadge">
+                    ⚙️ API Key Settings
+                </span>
             </div>
         </div>
 
-        <form id="releaseOrderForm">
-
-            <div class="form-row">
-                <div class="form-group">
+        <!-- ==================== SINGLE MODE VIEW ==================== -->
+        <div id="singleModeContainer">
+            <div id="correctionSearch" style="display: none;">
+                <div class="form-group" style="margin: 0;">
                     <div class="label-header">
-                        <label for="templateType">RO Type *</label>
-                        <label class="retain-wrapper">
-                            <span>Retain</span>
-                            <input type="checkbox" class="retain-toggle" id="retain_templateType" checked>
+                        <label>Enter RO Number to Correct</label>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="searchRoNumber" placeholder="e.g. 25-26/0002">
+                        <button type="button" onclick="fetchROData()">Load</button>
+                    </div>
+                </div>
+            </div>
+
+            <form id="releaseOrderForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <div class="label-header">
+                            <label for="templateType">RO Type *</label>
+                            <label class="retain-wrapper">
+                                <span>Retain</span>
+                                <input type="checkbox" class="retain-toggle" id="retain_templateType" checked>
+                            </label>
+                        </div>
+                        <select id="templateType" required>
+                            <option value="RO_With_Remarks.pdf">Small(Remarks)</option>
+                            <option value="RO_No_Remarks.pdf">Big(No Remarks)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-header">
+                            <label>Color Format</label>
+                            <label class="retain-wrapper">
+                                <span>Retain</span>
+                                <input type="checkbox" class="retain-toggle" id="retain_isBW" checked>
+                            </label>
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; height: 100%;">
+                            <input type="checkbox" id="isBW" style="width: 18px; height: 18px; accent-color: #4f46e5;">
+                            <span style="font-size: 14px; font-weight: 500; color: #334155;">Print in Black & White (B/W)</span>
                         </label>
                     </div>
-                    <select id="templateType" required>
-                        <option value="RO_With_Remarks.pdf">Small(Remarks)</option>
-                        <option value="RO_No_Remarks.pdf">Big(No Remarks)</option>
-                    </select>
                 </div>
 
-                <div class="form-group">
-                    <div class="label-header">
-                        <label>Color Format</label>
-                        <label class="retain-wrapper">
-                            <span>Retain</span>
-                            <input type="checkbox" class="retain-toggle" id="retain_isBW" checked>
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="publicationName">Publication Name *</label>
+                                <label class="retain-wrapper">
+                                    <span>Retain</span>
+                                    <input type="checkbox" class="retain-toggle" id="retain_publicationName">
+                                </label>
+                            </div>
+                            <input type="text" id="publicationName" required placeholder="e.g., The Times of India">
+                        </div>
+
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="edition">Edition/Place *</label>
+                                <label class="retain-wrapper">
+                                    <span>Retain</span>
+                                    <input type="checkbox" class="retain-toggle" id="retain_edition">
+                                </label>
+                            </div>
+                            <input type="text" id="edition" required placeholder="e.g., Lucknow Edition">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="client">Client Name *</label>
+                                <label class="retain-wrapper">
+                                    <span>Retain</span>
+                                    <input type="checkbox" class="retain-toggle" id="retain_client" checked>
+                                </label>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="client" required placeholder="Main Name (Red)" style="flex: 2;">
+                                <input type="text" id="clientExtra" placeholder="Extra (Black)" style="flex: 1;">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="position">Position *</label>
+                                <label class="retain-wrapper">
+                                    <span>Retain</span>
+                                    <input type="checkbox" class="retain-toggle" id="retain_position" checked>
+                                </label>
+                            </div>
+                            <input type="text" id="position" required value="Page 4/5" placeholder="e.g., BEST, Front Page">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="generationDate">Generation Date *</label>
+                                <label class="retain-wrapper">
+                                    <span>Retain</span>
+                                    <input type="checkbox" class="retain-toggle" id="retain_generationDate" checked>
+                                </label>
+                            </div>
+                            <input type="date" id="generationDate" required>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="scheduledDate">Scheduled Date *</label>
+                                <label class="retain-wrapper">
+                                    <span>Retain</span>
+                                    <input type="checkbox" class="retain-toggle" id="retain_scheduledDate" checked>
+                                </label>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="date" id="scheduledDate" required style="flex: 2;">
+                                <input type="text" id="dateExtra" placeholder="Extra (Black)" style="flex: 1;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>Size (in CM) *</label>
+                                <label class="retain-wrapper">
+                                    <span>Retain</span>
+                                    <input type="checkbox" class="retain-toggle" id="retain_size" checked>
+                                </label>
+                            </div>
+                            <div class="size-input-group">
+                                <input type="number" id="sizeWidth" required placeholder="Width" min="1" step="0.1">
+                                <span>X</span>
+                                <input type="number" id="sizeHeight" required placeholder="Height" min="1" step="0.1">
+                            </div>
+                            <div class="helper-text">Example: 26 X 33 (Width X Height)</div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="rate">Rate *</label>
+                                <label class="retain-wrapper">
+                                    <span>Retain</span>
+                                    <input type="checkbox" class="retain-toggle" id="retain_rate" checked>
+                                </label>
+                            </div>
+                            <input type="text" id="rate" required placeholder="e.g., 2000 - less 20%">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-generate" id="generateBtn">
+                    Generate Release Order
+                </button>
+            </form>
+        </div>
+
+        <!-- ==================== BATCH AUTOMATION MODE VIEW ==================== -->
+        <div id="batchModeContainer" style="display: none;">
+            <div class="batch-banner">
+                <div class="batch-banner-text">
+                    ⚡ <strong>Automated Batch Generator</strong>: Fill campaign constants, upload the client newspaper list PDF, and download all generated ROs as a ZIP.
+                </div>
+            </div>
+
+            <!-- Campaign Constant Fields -->
+            <form id="batchConstantsForm" onsubmit="event.preventDefault();">
+                <div class="form-row">
+                    <div class="form-group">
+                        <div class="label-header">
+                            <label for="batch_templateType">RO Type (All ROs) *</label>
+                        </div>
+                        <select id="batch_templateType" required>
+                            <option value="RO_With_Remarks.pdf">Small(Remarks)</option>
+                            <option value="RO_No_Remarks.pdf">Big(No Remarks)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-header">
+                            <label>Color Format</label>
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; height: 100%;">
+                            <input type="checkbox" id="batch_isBW" style="width: 18px; height: 18px; accent-color: #ea580c;">
+                            <span style="font-size: 14px; font-weight: 500; color: #334155;">Print in Black & White (B/W)</span>
                         </label>
                     </div>
-                    <label
-                        style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; height: 100%;">
-                        <input type="checkbox" id="isBW" style="width: 18px; height: 18px; accent-color: #4f46e5;">
-                        <span style="font-size: 14px; font-weight: 500; color: #334155;">Print in Black & White
-                            (B/W)</span>
-                    </label>
                 </div>
-            </div>
 
-            <div class="form-section">
-                <div class="form-row">
-                    <div class="form-group">
-                        <div class="label-header">
-                            <label for="publicationName">Publication Name *</label>
-                            <label class="retain-wrapper">
-                                <span>Retain</span>
-                                <input type="checkbox" class="retain-toggle" id="retain_publicationName">
-                            </label>
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="batch_client">Client Name *</label>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="batch_client" required placeholder="e.g., UPID-DEEPOTSAV 2026" style="flex: 2;">
+                                <input type="text" id="batch_clientExtra" placeholder="Extra (Optional)" style="flex: 1;">
+                            </div>
                         </div>
-                        <input type="text" id="publicationName" required placeholder="e.g., The Times of India">
-                    </div>
 
-                    <div class="form-group">
-                        <div class="label-header">
-                            <label for="edition">Edition/Place *</label>
-                            <label class="retain-wrapper">
-                                <span>Retain</span>
-                                <input type="checkbox" class="retain-toggle" id="retain_edition">
-                            </label>
-                        </div>
-                        <input type="text" id="edition" required placeholder="e.g., Lucknow Edition">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-row">
-                    <div class="form-group">
-                        <div class="label-header">
-                            <label for="client">Client Name *</label>
-                            <label class="retain-wrapper">
-                                <span>Retain</span>
-                                <input type="checkbox" class="retain-toggle" id="retain_client" checked>
-                            </label>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="client" required placeholder="Main Name (Red)" style="flex: 2;">
-                            <input type="text" id="clientExtra" placeholder="Extra (Black)" style="flex: 1;">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="label-header">
-                            <label for="position">Position *</label>
-                            <label class="retain-wrapper">
-                                <span>Retain</span>
-                                <input type="checkbox" class="retain-toggle" id="retain_position" checked>
-                            </label>
-                        </div>
-                        <input type="text" id="position" required value="Page 4/5" placeholder="e.g., BEST, Front Page">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-row">
-                    <div class="form-group">
-                        <div class="label-header">
-                            <label for="generationDate">Generation Date *</label>
-                            <label class="retain-wrapper">
-                                <span>Retain</span>
-                                <input type="checkbox" class="retain-toggle" id="retain_generationDate" checked>
-                            </label>
-                        </div>
-                        <input type="date" id="generationDate" required>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="label-header">
-                            <label for="scheduledDate">Scheduled Date *</label>
-                            <label class="retain-wrapper">
-                                <span>Retain</span>
-                                <input type="checkbox" class="retain-toggle" id="retain_scheduledDate" checked>
-                            </label>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="date" id="scheduledDate" required style="flex: 2;">
-                            <input type="text" id="dateExtra" placeholder="Extra (Black)" style="flex: 1;">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="batch_position">Position *</label>
+                            </div>
+                            <input type="text" id="batch_position" required value="Page 4/5" placeholder="e.g., BEST, Page 4/5">
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="form-section">
-                <div class="form-row">
-                    <div class="form-group">
-                        <div class="label-header">
-                            <label>Size (in CM) *</label>
-                            <label class="retain-wrapper">
-                                <span>Retain</span>
-                                <input type="checkbox" class="retain-toggle" id="retain_size" checked>
-                            </label>
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="batch_generationDate">Generation Date *</label>
+                            </div>
+                            <input type="date" id="batch_generationDate" required>
                         </div>
-                        <div class="size-input-group">
-                            <input type="number" id="sizeWidth" required placeholder="Width" min="1" step="0.1">
-                            <span>X</span>
-                            <input type="number" id="sizeHeight" required placeholder="Height" min="1" step="0.1">
-                        </div>
-                        <div class="helper-text">Example: 26 X 33 (Width X Height)</div>
-                    </div>
 
-                    <div class="form-group">
-                        <div class="label-header">
-                            <label for="rate">Rate *</label>
-                            <label class="retain-wrapper">
-                                <span>Retain</span>
-                                <input type="checkbox" class="retain-toggle" id="retain_rate" checked>
-                            </label>
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="batch_scheduledDate">Scheduled Date *</label>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="date" id="batch_scheduledDate" required style="flex: 2;">
+                                <input type="text" id="batch_dateExtra" placeholder="Extra (Optional)" style="flex: 1;">
+                            </div>
                         </div>
-                        <input type="text" id="rate" required placeholder="e.g., 2000 - less 20%">
                     </div>
                 </div>
+
+                <div class="form-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>Size (in CM) *</label>
+                            </div>
+                            <div class="size-input-group">
+                                <input type="number" id="batch_sizeWidth" required placeholder="Width" min="1" step="0.1" value="16">
+                                <span>X</span>
+                                <input type="number" id="batch_sizeHeight" required placeholder="Height" min="1" step="0.1" value="25">
+                            </div>
+                            <div class="helper-text">Applies to all generated ROs in this batch</div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label for="batch_rate">Rate *</label>
+                            </div>
+                            <input type="text" id="batch_rate" required placeholder="e.g., DAVP + 40%" value="DAVP + 40%">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PDF File Upload Section -->
+                <div class="form-section">
+                    <div class="label-header">
+                        <label>Upload Client Schedule Document (PDF) *</label>
+                        <a href="javascript:void(0)" onclick="toggleBatchTextInput()" style="font-size: 11px; color: #4f46e5; font-weight: 600; text-decoration: none;">
+                            Or paste text schedule
+                        </a>
+                    </div>
+
+                    <input type="file" id="batchPdfInput" accept=".pdf,image/*" style="display: none;" onchange="handleBatchFileSelect(this.files)">
+
+                    <div class="dropzone" id="batchDropzone" onclick="document.getElementById('batchPdfInput').click()">
+                        <span class="dropzone-icon">📄</span>
+                        <div class="dropzone-text">Click to choose or drag & drop client schedule PDF</div>
+                        <div class="dropzone-subtext">Gemini will extract all newspaper names, routines, and editions using your extraction skill</div>
+                    </div>
+
+                    <div id="batchFileBadge" style="display: none;"></div>
+
+                    <!-- Optional Text Paste Area -->
+                    <div id="batchTextContainer" style="display: none; margin-top: 15px;">
+                        <div class="label-header">
+                            <label for="batchTextInput">Paste Raw Newspaper Schedule / Table Text:</label>
+                        </div>
+                        <textarea id="batchTextInput" rows="4" placeholder="Paste table text or WhatsApp message here..."></textarea>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-batch-extract" id="batchExtractBtn" onclick="extractBatchSchedule()">
+                    ⚡ Extract Newspaper Schedule with AI
+                </button>
+            </form>
+
+            <!-- Extracted Items Review & ZIP Generation Area -->
+            <div class="preview-card" id="batchPreviewCard" style="display: none;">
+                <div class="preview-header">
+                    <h3>Extracted Newspaper Schedule (<span id="batchCount">0</span> publications)</h3>
+                    <button type="button" class="btn-add-row" onclick="addBatchPreviewRow()">+ Add Newspaper</button>
+                </div>
+
+                <div class="preview-table-wrapper">
+                    <table class="preview-table" id="batchPreviewTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>Newspaper / Publication Name</th>
+                                <th style="width: 120px;">Language</th>
+                                <th style="width: 140px;">Routine / Frequency</th>
+                                <th>Edition / Place</th>
+                                <th style="width: 45px; text-align: center;">✕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchPreviewTableBody">
+                            <!-- Rows injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="batch-summary-pill" id="batchSummaryPill">
+                    Ready to generate ROs
+                </div>
+
+                <button type="button" class="btn-generate" id="batchGenerateBtn" onclick="generateBatchZip()">
+                    🚀 Generate All ROs & Download ZIP Archive
+                </button>
+
+                <!-- Progress Bar -->
+                <div class="progress-container" id="batchProgressBar">
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="batchProgressFill"></div>
+                    </div>
+                    <div class="progress-status-text" id="batchProgressText">Preparing batch generation...</div>
+                </div>
             </div>
+        </div>
 
-            <button type="submit" class="btn-generate" id="generateBtn">
-                Generate Release Order
-            </button>
-        </form>
-
+        <!-- Global Status Messages -->
         <div class="status-message" id="statusMessage"></div>
+    </div>
+
+    <!-- API Key Settings Modal -->
+    <div id="apiKeyModal">
+        <div class="modal-box">
+            <h3>Google Gemini API Key</h3>
+            <p>Enter your free Google AI Studio API key. It is saved securely in your browser's local storage and used to run the data extraction skill.</p>
+            <div class="form-group">
+                <input type="text" id="customApiKeyInput" placeholder="AIzaSy...">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-add-row" onclick="closeApiKeyModal()">Cancel</button>
+                <button type="button" class="btn-generate" style="margin: 0; width: auto; padding: 8px 16px;" onclick="saveCustomApiKey()">Save Key</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -609,20 +1249,190 @@
         const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxW8sBm-jx843ksdUwy4Vz7jvSrvIaCPRCHl1JrdBKpIlotAJMi5OYn8eCV4U7R5GocgA/exec';
 
         // ==================== GLOBAL VARIABLES ====================
-        let pdfTemplate = null;
+        let currentTab = 'single';
         let isEditMode = false;
-        let nextRONumber = null; // Fixed: Was previously commented out!
+        let isSafeDevMode = true; // DEFAULT: PROTECT PRODUCTION GOOGLE SHEET
+        let nextRONumber = null;
+        let selectedBatchFile = null;
+        let extractedBatchRows = [];
+        let hasServerKey = false;
+
+        function toggleSafeMode(enabled) {
+            isSafeDevMode = enabled;
+            const bar = document.getElementById('safeModeBar');
+            const badge = document.getElementById('safeModeBadge');
+            const desc = document.getElementById('safeModeDesc');
+
+            if (isSafeDevMode) {
+                bar.classList.remove('live-mode');
+                badge.textContent = '🛡️ Safe Dev Mode: ON (Sheet Protected)';
+                desc.textContent = 'Google Sheets updates are blocked. PDFs & ZIPs will be generated safely without modifying production data.';
+                showStatus('info', 'Safe Dev Mode: Production Google Sheet will NOT be modified.');
+            } else {
+                bar.classList.add('live-mode');
+                badge.textContent = '⚠️ LIVE Mode: ON (Production Active)';
+                desc.textContent = 'CAUTION: Generating Release Orders will directly write new rows to your live Google Sheet tracker!';
+                showStatus('error', 'CAUTION: Live Mode activated! Generating orders will update your production Google Sheet.');
+            }
+        }
 
         // ==================== INITIALIZATION ====================
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                document.getElementById('generationDate').value = getTodayYYYYMMDD();
+                const todayStr = getTodayYYYYMMDD();
+                document.getElementById('generationDate').value = todayStr;
+                document.getElementById('batch_generationDate').value = todayStr;
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
+                document.getElementById('batch_scheduledDate').value = tomorrowStr;
+
                 await fetchNextRONumber();
+                await checkServerConfig();
                 setupFormSubmission();
+                setupDropzone();
             } catch (error) {
                 console.error("Initialization error:", error);
             }
         });
+
+        // ==================== TAB SWITCHER ====================
+        function switchAppTab(tab) {
+            currentTab = tab;
+            const singleTabBtn = document.getElementById('tabBtnSingle');
+            const batchTabBtn = document.getElementById('tabBtnBatch');
+            const singleContainer = document.getElementById('singleModeContainer');
+            const batchContainer = document.getElementById('batchModeContainer');
+            const modeControlsSingle = document.getElementById('modeControlsSingle');
+            const modeControlsBatch = document.getElementById('modeControlsBatch');
+            const roNumberLabel = document.getElementById('roNumberLabel');
+
+            if (tab === 'single') {
+                singleTabBtn.classList.add('active');
+                batchTabBtn.classList.remove('active');
+                singleContainer.style.display = 'block';
+                batchContainer.style.display = 'none';
+                modeControlsSingle.style.display = 'block';
+                modeControlsBatch.style.display = 'none';
+                roNumberLabel.textContent = "Next R.O. Number";
+            } else {
+                singleTabBtn.classList.remove('active');
+                batchTabBtn.classList.add('active');
+                singleContainer.style.display = 'none';
+                batchContainer.style.display = 'block';
+                modeControlsSingle.style.display = 'none';
+                modeControlsBatch.style.display = 'block';
+                roNumberLabel.textContent = "Current Starting R.O. Number";
+            }
+        }
+
+        // ==================== CHECK SERVER CONFIG ====================
+        async function checkServerConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                hasServerKey = Boolean(data.hasServerApiKey);
+                updateApiKeyBadge();
+            } catch (e) {
+                console.log('Using standalone client mode or offline server');
+            }
+        }
+
+        function updateApiKeyBadge() {
+            const badge = document.getElementById('apiKeyBadge');
+            const customKey = localStorage.getItem('custom_gemini_api_key');
+            if (customKey) {
+                badge.innerHTML = '🔑 Custom API Key Active';
+                badge.style.color = '#4338ca';
+            } else if (hasServerKey) {
+                badge.innerHTML = '✓ Server Gemini Key Active';
+                badge.style.color = '#166534';
+            } else {
+                badge.innerHTML = '⚠️ Set Gemini API Key';
+                badge.style.color = '#b91c1c';
+            }
+        }
+
+        function openApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            const input = document.getElementById('customApiKeyInput');
+            input.value = localStorage.getItem('custom_gemini_api_key') || '';
+            modal.style.display = 'flex';
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').style.display = 'none';
+        }
+
+        function saveCustomApiKey() {
+            const val = document.getElementById('customApiKeyInput').value.trim();
+            if (val) {
+                localStorage.setItem('custom_gemini_api_key', val);
+            } else {
+                localStorage.removeItem('custom_gemini_api_key');
+            }
+            updateApiKeyBadge();
+            closeApiKeyModal();
+            showStatus('success', 'API Key updated successfully!');
+        }
+
+        // ==================== DROPZONE & FILE HANDLING ====================
+        function setupDropzone() {
+            const dropzone = document.getElementById('batchDropzone');
+            if (!dropzone) return;
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('dragover');
+                }, false);
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length) {
+                    handleBatchFileSelect(files);
+                }
+            });
+        }
+
+        function handleBatchFileSelect(files) {
+            if (!files || !files.length) return;
+            selectedBatchFile = files[0];
+            const badge = document.getElementById('batchFileBadge');
+            const dropzone = document.getElementById('batchDropzone');
+
+            badge.innerHTML = `
+                <span>📄 ${escapeHtml(selectedBatchFile.name)} (${(selectedBatchFile.size / 1024).toFixed(1)} KB)</span>
+                <button type="button" title="Remove file" onclick="clearBatchFile(event)">✕</button>
+            `;
+            badge.className = 'file-badge';
+            badge.style.display = 'inline-flex';
+            dropzone.style.display = 'none';
+        }
+
+        function clearBatchFile(e) {
+            if (e) e.stopPropagation();
+            selectedBatchFile = null;
+            document.getElementById('batchPdfInput').value = '';
+            document.getElementById('batchFileBadge').style.display = 'none';
+            document.getElementById('batchDropzone').style.display = 'block';
+        }
+
+        function toggleBatchTextInput() {
+            const container = document.getElementById('batchTextContainer');
+            container.style.display = container.style.display === 'none' ? 'block' : 'none';
+        }
 
         // ==================== FETCH NEXT R.O. NUMBER ====================
         async function fetchNextRONumber() {
@@ -633,6 +1443,7 @@
                 if (data.success) {
                     nextRONumber = data.nextRONumber;
                     document.getElementById('nextRONumber').textContent = nextRONumber;
+                    updateBatchSummaryPill();
                 } else {
                     throw new Error(data.message || 'Failed to fetch R.O. number');
                 }
@@ -643,7 +1454,345 @@
             }
         }
 
-        // ==================== FORM SUBMISSION ====================
+        // ==================== BATCH EXTRACTION ====================
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const res = reader.result;
+                    const base64 = res.includes(',') ? res.split(',')[1] : res;
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function extractBatchSchedule() {
+            const textInput = document.getElementById('batchTextInput');
+            const extractBtn = document.getElementById('batchExtractBtn');
+
+            if (!selectedBatchFile && (!textInput || !textInput.value.trim())) {
+                alert("Please upload a client schedule PDF or paste schedule text first.");
+                return;
+            }
+
+            // Validate constant fields
+            const client = document.getElementById('batch_client').value.trim();
+            const schedDate = document.getElementById('batch_scheduledDate').value;
+            const width = document.getElementById('batch_sizeWidth').value;
+            const height = document.getElementById('batch_sizeHeight').value;
+            const rate = document.getElementById('batch_rate').value.trim();
+
+            if (!client || !schedDate || !width || !height || !rate) {
+                alert("Please fill in the campaign constants (Client Name, Scheduled Date, Size, and Rate) before extracting.");
+                return;
+            }
+
+            extractBtn.disabled = true;
+            extractBtn.innerHTML = '<span class="loading"></span> Extracting with Gemini & Skill...';
+
+            try {
+                let pdfBase64 = null;
+                if (selectedBatchFile) {
+                    pdfBase64 = await fileToBase64(selectedBatchFile);
+                }
+
+                const customKey = localStorage.getItem('custom_gemini_api_key') || '';
+
+                const response = await fetch('/api/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pdfBase64: pdfBase64,
+                        text: textInput ? textInput.value.trim() : '',
+                        apiKey: customKey
+                    })
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.message || 'Extraction failed');
+                }
+
+                if (!result.data || result.data.length === 0) {
+                    throw new Error("No newspaper entries were found in the document. Please check the document or paste the text directly.");
+                }
+
+                renderBatchPreviewTable(result.data);
+                showStatus('info', `Successfully extracted ${result.data.length} publications. Review below and generate.`);
+
+            } catch (err) {
+                console.error('Batch extraction error:', err);
+                showStatus('error', 'Extraction error: ' + err.message);
+                if (err.message && err.message.includes('API key')) {
+                    openApiKeyModal();
+                }
+            } finally {
+                extractBtn.disabled = false;
+                extractBtn.innerHTML = '⚡ Extract Newspaper Schedule with AI';
+            }
+        }
+
+        function parseLanguageAndRoutine(rawLang, rawRoutine) {
+            let lang = (rawLang || '').trim();
+            let routine = (rawRoutine || '').trim();
+
+            if (!lang && routine) {
+                const knownLangs = ['HINDI', 'URDU', 'ENGLISH', 'BENGALI', 'PUNJABI', 'GUJARATI', 'MARATHI'];
+                const upperRoutine = routine.toUpperCase();
+                for (const kl of knownLangs) {
+                    if (upperRoutine.includes(kl)) {
+                        lang = kl.charAt(0) + kl.slice(1).toLowerCase();
+                        // Clean the routine by removing the language keyword
+                        routine = routine.replace(new RegExp(kl, 'i'), '').trim();
+                        break;
+                    }
+                }
+            }
+
+            return {
+                language: lang || 'Hindi',
+                routine: routine || 'Daily'
+            };
+        }
+
+        function renderBatchPreviewTable(rows) {
+            extractedBatchRows = rows.map(r => {
+                const parsed = parseLanguageAndRoutine(r.language, r.routine);
+                return {
+                    name: (r.name || '').trim(),
+                    language: parsed.language,
+                    routine: parsed.routine,
+                    edition: (r.edition || '').trim()
+                };
+            });
+
+            const tbody = document.getElementById('batchPreviewTableBody');
+            tbody.innerHTML = '';
+
+            extractedBatchRows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="color: #64748b; font-weight: 600;">${idx + 1}</td>
+                    <td>
+                        <input type="text" value="${escapeHtml(row.name)}" oninput="updateExtractedRow(${idx}, 'name', this.value)" placeholder="Newspaper Name">
+                    </td>
+                    <td>
+                        <input type="text" value="${escapeHtml(row.language)}" oninput="updateExtractedRow(${idx}, 'language', this.value)" placeholder="e.g. HINDI">
+                    </td>
+                    <td>
+                        <input type="text" value="${escapeHtml(row.routine)}" oninput="updateExtractedRow(${idx}, 'routine', this.value)" placeholder="e.g. DAILY">
+                    </td>
+                    <td>
+                        <input type="text" value="${escapeHtml(row.edition)}" oninput="updateExtractedRow(${idx}, 'edition', this.value)" placeholder="e.g. LUCKNOW">
+                    </td>
+                    <td style="text-align: center;">
+                        <button type="button" class="btn-del-row" title="Remove" onclick="removeBatchPreviewRow(${idx})">✕</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('batchCount').textContent = extractedBatchRows.length;
+            document.getElementById('batchPreviewCard').style.display = 'block';
+            updateBatchSummaryPill();
+
+            // Scroll to preview smoothly
+            document.getElementById('batchPreviewCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function updateExtractedRow(index, field, value) {
+            if (extractedBatchRows[index]) {
+                extractedBatchRows[index][field] = value;
+            }
+        }
+
+        function removeBatchPreviewRow(index) {
+            extractedBatchRows.splice(index, 1);
+            renderBatchPreviewTable(extractedBatchRows);
+        }
+
+        function addBatchPreviewRow() {
+            extractedBatchRows.push({ name: '', language: '', routine: '', edition: '' });
+            renderBatchPreviewTable(extractedBatchRows);
+        }
+
+        function getSequentialRONumber(baseRONumber, offset) {
+            if (!baseRONumber) return '';
+            const parts = baseRONumber.split('/');
+            if (parts.length === 2) {
+                const fy = parts[0];
+                const num = parseInt(parts[1], 10);
+                if (!isNaN(num)) {
+                    const nextNum = (num + offset).toString().padStart(parts[1].length, '0');
+                    return `${fy}/${nextNum}`;
+                }
+            }
+            return `${baseRONumber} (+${offset})`;
+        }
+
+        function updateBatchSummaryPill() {
+            const pill = document.getElementById('batchSummaryPill');
+            const count = extractedBatchRows.length;
+            if (!count) {
+                pill.textContent = "Ready to generate 0 ROs";
+                return;
+            }
+
+            const startRO = nextRONumber || '????';
+            const endRO = getSequentialRONumber(startRO, count - 1);
+            pill.innerHTML = `Ready to generate <strong>${count}</strong> Release Orders: <strong>${escapeHtml(startRO)}</strong> to <strong>${escapeHtml(endRO)}</strong>`;
+        }
+
+        // ==================== BATCH GENERATION & ZIP BUNDLING ====================
+        function buildBatchROItem(row, offset, baseRONumber) {
+            const width = parseFloat(document.getElementById('batch_sizeWidth').value) || 0;
+            const height = parseFloat(document.getElementById('batch_sizeHeight').value) || 0;
+            const sqcm = (width * height).toFixed(2);
+            const isBW = document.getElementById('batch_isBW').checked;
+            const bwSuffix = isBW ? ' (B/W)' : '';
+
+            const schedDateVal = document.getElementById('batch_scheduledDate').value;
+            const schedDateObj = new Date(schedDateVal);
+            const formattedSchedDate = schedDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            const genDateVal = document.getElementById('batch_generationDate').value;
+            const genDateObj = new Date(genDateVal);
+            const formattedGenDate = genDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            const roNum = getSequentialRONumber(baseRONumber, offset);
+
+            const name = (row.name || '').trim().toUpperCase();
+            const lang = (row.language || '').trim().toUpperCase();
+            const routine = (row.routine || '').trim().toUpperCase();
+
+            // Format as NAME (LANGUAGE FREQUENCY) e.g. LOHIYA DARPAN (HINDI DAILY)
+            let spec = '';
+            if (lang && routine) {
+                spec = routine.includes(lang) ? routine : `${lang} ${routine}`;
+            } else {
+                spec = lang || routine;
+            }
+
+            let pubName = name;
+            if (spec && !pubName.includes(spec)) {
+                pubName = `${name} (${spec})`;
+            }
+
+            const edition = (row.edition || '').trim().toUpperCase();
+            const templateFilename = document.getElementById('batch_templateType').value;
+            const client = document.getElementById('batch_client').value.trim().toUpperCase();
+            const clientExtra = document.getElementById('batch_clientExtra').value.trim().toUpperCase();
+            const dateExtra = document.getElementById('batch_dateExtra').value.trim().toUpperCase();
+            const position = document.getElementById('batch_position').value.trim().toUpperCase();
+            const rateVal = document.getElementById('batch_rate').value.trim().toUpperCase();
+
+            return {
+                roNumber: roNum,
+                date: formattedGenDate,
+                publicationName: pubName,
+                edition: edition,
+                client: client,
+                clientExtra: clientExtra,
+                scheduledDate: formattedSchedDate + '  \"MUST\"',
+                dateExtra: dateExtra,
+                scheduledDateSS: formattedSchedDate,
+                size: `${width}CM (W) X ${height}CM (H) = ${sqcm} SQCM ${bwSuffix}`,
+                sizeSS: `${sqcm}`,
+                templateFilename: templateFilename,
+                templateType: templateFilename,
+                position: position,
+                material: 'AD. ENCLOSED/DOWNLOAD/BY MAIL',
+                rate: rateVal.includes('+ GST') ? rateVal : (rateVal + ' + GST AS APPLICABLE'),
+            };
+        }
+
+        async function generateBatchZip() {
+            if (!extractedBatchRows || extractedBatchRows.length === 0) {
+                alert("No newspaper rows to generate!");
+                return;
+            }
+
+            const btn = document.getElementById('batchGenerateBtn');
+            const progressContainer = document.getElementById('batchProgressBar');
+            const progressFill = document.getElementById('batchProgressFill');
+            const progressText = document.getElementById('batchProgressText');
+
+            btn.disabled = true;
+            progressContainer.style.display = 'block';
+
+            try {
+                // Fetch fresh starting RO number from Google Apps Script
+                await fetchNextRONumber();
+                const startingRO = nextRONumber;
+                const total = extractedBatchRows.length;
+                const zip = new JSZip();
+
+                for (let i = 0; i < total; i++) {
+                    const row = extractedBatchRows[i];
+                    const roData = buildBatchROItem(row, i, startingRO);
+
+                    const percent = Math.round(((i + 1) / total) * 90);
+                    progressFill.style.width = percent + '%';
+                    progressText.textContent = `Generating ${i + 1} of ${total}: ${roData.publicationName}...`;
+
+                    // Generate PDF in memory
+                    const pdfBytes = await fillPDFTemplate(roData);
+
+                    // Filename: [RONumber]_[NewspaperName].pdf
+                    const sanitize = s => (s || '').replace(/[\/\\?%*:|"<>]/g, '_').trim();
+                    const safeRO = sanitize(roData.roNumber.replace(/\//g, '_'));
+                    const safePub = sanitize(roData.publicationName);
+
+                    const filename = `${safeRO}_${safePub}.pdf`;
+                    zip.file(filename, pdfBytes);
+
+                    // Background Google Sheets record save (only when Safe Mode is OFF)
+                    if (!isSafeDevMode) {
+                        saveToGoogleSheets(roData).catch(err => console.error("Sheet sync error for RO:", roData.roNumber, err));
+                    } else {
+                        console.log(`[Safe Mode] Skipped saving RO ${roData.roNumber} (${roData.publicationName}) to Google Sheet.`);
+                    }
+                }
+
+                progressFill.style.width = '95%';
+                progressText.textContent = 'Compressing all PDFs into ZIP...';
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const sanitize = s => (s || '').replace(/[\/\\?%*:|"<>]/g, '_').trim();
+                const safeClient = sanitize(document.getElementById('batch_client').value.trim() || 'Client');
+                const zipFilename = `Release_Orders_${safeClient}_${getTodayYYYYMMDD()}.zip`;
+
+                // Instant download
+                const downloadUrl = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = zipFilename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+                progressFill.style.width = '100%';
+                if (isSafeDevMode) {
+                    progressText.textContent = `Completed! ${total} Release Orders downloaded in ${zipFilename} (Sheet updates blocked)`;
+                    showStatus('success', `[Safe Dev Mode] Generated & bundled ${total} Release Orders into ${zipFilename}! Production Google Sheet was NOT touched.`);
+                } else {
+                    progressText.textContent = `Completed! ${total} Release Orders downloaded in ${zipFilename}`;
+                    showStatus('success', `Success! Generated, synced, and bundled ${total} Release Orders into ${zipFilename}`);
+                    await fetchNextRONumber();
+                }
+
+            } catch (err) {
+                console.error('Batch generation error:', err);
+                showStatus('error', 'Batch generation failed: ' + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // ==================== SINGLE RO FORM SUBMISSION ====================
         function setupFormSubmission() {
             const form = document.getElementById('releaseOrderForm');
             form.addEventListener('submit', async (e) => {
@@ -652,7 +1801,7 @@
             });
         }
 
-        // ==================== HELPER FUNCTIONS ====================
+        // ==================== SINGLE RO HELPER FUNCTIONS ====================
         function toggleEditMode() {
             isEditMode = !isEditMode;
             const modeLabel = document.getElementById('modeLabel');
@@ -714,8 +1863,8 @@
             document.getElementById('publicationName').value = data.publicationName || '';
             document.getElementById('edition').value = data.edition || '';
             document.getElementById('client').value = data.client || '';
-            document.getElementById('clientExtra').value = data.clientExtra || ''; // ADD THIS
-            document.getElementById('dateExtra').value = data.dateExtra || '';     // ADD THIS
+            document.getElementById('clientExtra').value = data.clientExtra || '';
+            document.getElementById('dateExtra').value = data.dateExtra || '';
             if (data.position) document.getElementById('position').value = data.position;
 
             if (data.scheduledDate) {
@@ -766,7 +1915,6 @@
 
             fieldIds.forEach(id => {
                 let retainId = 'retain_' + id;
-                // Map extra fields to their parent's retain toggle
                 if (id === 'clientExtra') retainId = 'retain_client';
                 if (id === 'dateExtra') retainId = 'retain_scheduledDate';
                 if (id === 'sizeWidth' || id === 'sizeHeight') retainId = 'retain_size';
@@ -783,7 +1931,7 @@
             });
         }
 
-        // ==================== GENERATE RELEASE ORDER ====================
+        // ==================== GENERATE SINGLE RELEASE ORDER ====================
         async function generateReleaseOrder() {
             const btn = document.getElementById('generateBtn');
             btn.disabled = true;
@@ -793,18 +1941,18 @@
                 const formData = collectFormData();
                 const pdfBytes = await fillPDFTemplate(formData);
 
-                // 1. Send data to Google Sheets in background
-                const savePromise = saveToGoogleSheets(formData);
-
-                // 2. Trigger native download/share instantly for Safari
-                await downloadPDF(pdfBytes, `${formData.publicationName}-${nextRONumber.split('/')[1]}.pdf`);
-
-                // 3. Ensure Google save finishes
-                await savePromise;
-
-                showStatus('success', `Release Order ${nextRONumber} generated successfully!`);
+                if (!isSafeDevMode) {
+                    const savePromise = saveToGoogleSheets(formData);
+                    await downloadPDF(pdfBytes, `${formData.publicationName}-${nextRONumber.split('/')[1]}.pdf`);
+                    await savePromise;
+                    showStatus('success', `Release Order ${nextRONumber} generated and saved to Google Sheets!`);
+                    await fetchNextRONumber();
+                } else {
+                    console.log('[Safe Mode] Skipped saving to Google Sheet:', formData);
+                    await downloadPDF(pdfBytes, `${formData.publicationName}-${nextRONumber.split('/')[1]}.pdf`);
+                    showStatus('success', `[Safe Dev Mode] Release Order ${nextRONumber} PDF generated! (Sheet update skipped)`);
+                }
                 resetFormSmartly();
-                await fetchNextRONumber();
 
             } catch (error) {
                 showStatus('error', 'Failed: ' + error.message);
@@ -835,9 +1983,9 @@
                 publicationName: document.getElementById('publicationName').value,
                 edition: document.getElementById('edition').value,
                 client: document.getElementById('client').value,
-                clientExtra: document.getElementById('clientExtra').value, // New field
+                clientExtra: document.getElementById('clientExtra').value,
                 scheduledDate: formattedScheduledDate + '  \"MUST\"',
-                dateExtra: document.getElementById('dateExtra').value,   // New field
+                dateExtra: document.getElementById('dateExtra').value,
                 scheduledDateSS: formattedScheduledDate,
                 size: `${width}CM (W) X ${height}CM (H) = ${sqcm} SQCM ${bwSuffix}`,
                 sizeSS: `${sqcm}`,
@@ -876,14 +2024,12 @@
             firstPage.drawText(data.client, { x: 110, y: 490, size: textConfigC.fontSize, font: boldFont, color: textConfigC.color });
             if (data.clientExtra) {
                 const primaryWidth = boldFont.widthOfTextAtSize(data.client, textConfigC.fontSize);
-                // Draw extra text in Black starting after the Red text (with 5px padding)
                 firstPage.drawText(data.clientExtra, { x: 110 + primaryWidth + 5, y: 490, size: textConfigC.fontSize, font: boldFont, color: textConfigB.color });
             }
 
             firstPage.drawText(data.scheduledDate, { x: 155, y: 452, size: textConfigC.fontSize, font: boldFont, color: textConfigC.color });
             if (data.dateExtra) {
                 const dateWidth = boldFont.widthOfTextAtSize(data.scheduledDate, textConfigC.fontSize);
-                // Draw extra text in Black starting after the Red text (with 5px padding)
                 firstPage.drawText(data.dateExtra, { x: 155 + dateWidth + 5, y: 452, size: textConfigC.fontSize, font: boldFont, color: textConfigB.color });
             }
 
@@ -906,31 +2052,25 @@
         // ==================== DOWNLOAD / SHARE PDF ====================
         async function downloadPDF(pdfBytes, filename) {
             const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-
-            // 1. Detect specifically if the user is on an Apple iOS device (iPhone/iPad)
-            // We use this because Android handles normal downloads perfectly fine!
             const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent);
 
-            // 2. IF iPhone/iPad: Force the Native OS Share Sheet
             if (isIOS && navigator.canShare) {
                 const file = new File([blob], filename, { type: 'application/pdf' });
                 if (navigator.canShare({ files: [file] })) {
                     try {
                         await navigator.share({ files: [file], title: 'Release Order' });
-                        return; // Exit if user shared/saved successfully
+                        return;
                     } catch (error) {
-                        if (error.name === 'AbortError') return; // User just swiped it away
+                        if (error.name === 'AbortError') return;
                     }
                 }
             }
 
-            // 3. IF DESKTOP OR ANDROID: Instant direct download!
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.href = url;
             link.download = filename;
             link.target = '_blank';
-
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -947,7 +2087,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: action, data: data })
                 });
-                console.log('Data sent to Google Sheets (' + action + ')');
+                console.log('Data sent to Google Sheets (' + action + ') for ' + data.roNumber);
             } catch (error) {
                 console.error('Error saving to Google Sheets:', error);
                 throw new Error('Could not save to tracking sheet');
@@ -960,7 +2100,17 @@
             statusDiv.className = 'status-message ' + type;
             statusDiv.textContent = message;
             statusDiv.style.display = 'block';
-            setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
+            setTimeout(() => { statusDiv.style.display = 'none'; }, 6000);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
     </script>
 </body>
