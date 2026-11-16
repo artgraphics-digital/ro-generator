@@ -855,13 +855,13 @@
         </div>
 
         <!-- Safe Dev Mode Banner & Toggle -->
-        <div class="safe-mode-bar" id="safeModeBar">
+        <div class="safe-mode-bar live-mode" id="safeModeBar">
             <div class="safe-mode-info">
-                <span class="safe-mode-badge" id="safeModeBadge">🛡️ Safe Dev Mode: ON (Sheet Protected)</span>
-                <span class="safe-mode-desc" id="safeModeDesc">Google Sheets updates are blocked. PDFs & ZIPs will be generated safely without modifying production data.</span>
+                <span class="safe-mode-badge" id="safeModeBadge">⚠️ LIVE Mode: ON (Production Active)</span>
+                <span class="safe-mode-desc" id="safeModeDesc">CAUTION: Generating Release Orders will directly write new rows to your live Google Sheet tracker!</span>
             </div>
             <label class="safe-mode-toggle" title="Toggle Safe Mode / Live Sheet Updates">
-                <input type="checkbox" id="safeModeCheckbox" checked onchange="toggleSafeMode(this.checked)">
+                <input type="checkbox" id="safeModeCheckbox" onchange="toggleSafeMode(this.checked)">
                 <span class="safe-slider"></span>
             </label>
         </div>
@@ -1251,7 +1251,7 @@
         // ==================== GLOBAL VARIABLES ====================
         let currentTab = 'single';
         let isEditMode = false;
-        let isSafeDevMode = true; // DEFAULT: PROTECT PRODUCTION GOOGLE SHEET
+        let isSafeDevMode = false; // DEFAULT: LIVE MODE (Safe Dev Mode OFF)
         let nextRONumber = null;
         let selectedBatchFile = null;
         let extractedBatchRows = [];
