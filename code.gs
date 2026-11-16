@@ -15,7 +15,12 @@ function doGet(e) {
     return getNextRONumber();
   }
 
-  // NEW: Action to fetch details of an existing RO
+  if (action === 'reserveBatchRONumbers') {
+    const count = parseInt(e.parameter.count, 10) || 1;
+    return reserveBatchRONumbers(count);
+  }
+
+  // Action to fetch details of an existing RO
   if (action === 'fetchRO') {
     return fetchRODetails(e.parameter.roNumber);
   }
@@ -35,7 +40,16 @@ function doPost(e) {
       return saveReleaseOrder(requestData.data);
     }
 
-    // NEW: Action to update an existing RO
+    if (action === 'saveBatchReleaseOrders') {
+      return saveBatchReleaseOrders(requestData.data);
+    }
+
+    if (action === 'reserveBatchRONumbers') {
+      const count = parseInt(requestData.count, 10) || 1;
+      return reserveBatchRONumbers(count);
+    }
+
+    // Action to update an existing RO
     if (action === 'updateReleaseOrder') {
       return updateReleaseOrder(requestData.data);
     }
@@ -53,61 +67,83 @@ function doPost(e) {
   }
 }
 
-// ==================== GET NEXT R.O. NUMBER ====================
-// ==================== GET DYNAMIC R.O. NUMBER ====================
+// ==================== FINANCIAL YEAR & RO SEQUENCE HELPERS ====================
+function getCurrentFinancialYear() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0 = Jan, 3 = April
+
+  let startYear, endYear;
+  if (month < 3) { // Jan, Feb, or Mar: still in previous FY
+    startYear = year - 1;
+    endYear = year;
+  } else { // April 1st onwards: current FY
+    startYear = year;
+    endYear = year + 1;
+  }
+
+  return String(startYear).slice(-2) + '-' + String(endYear).slice(-2);
+}
+
+// Scans rows to determine the true highest RO sequence number for current FY
+function getHighestROSequence(sheet, currentFY) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    return 0;
+  }
+
+  // Read column A values (up to 100 rows from the bottom for efficiency, or all if smaller)
+  const numRowsToCheck = Math.min(lastRow - 1, 100);
+  const startRow = lastRow - numRowsToCheck + 1;
+  const roValues = sheet.getRange(startRow, 1, numRowsToCheck, 1).getValues();
+
+  let maxNum = 0;
+  for (let i = roValues.length - 1; i >= 0; i--) {
+    const val = String(roValues[i][0] || '').trim();
+    if (val && val.includes('/')) {
+      const parts = val.split('/');
+      const fy = parts[0];
+      const num = parseInt(parts[1], 10);
+      if (fy === currentFY && !isNaN(num)) {
+        if (num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+  }
+
+  // Also check script properties in case of an active reservation that hasn't written to sheet yet
+  const props = PropertiesService.getScriptProperties();
+  const reservedFY = props.getProperty('RESERVED_FY');
+  const reservedMaxStr = props.getProperty('RESERVED_MAX_NUM');
+  if (reservedFY === currentFY && reservedMaxStr) {
+    const reservedMax = parseInt(reservedMaxStr, 10);
+    if (!isNaN(reservedMax) && reservedMax > maxNum) {
+      maxNum = reservedMax;
+    }
+  }
+
+  return maxNum;
+}
+
+// ==================== GET NEXT R.O. NUMBER (THREAD-SAFE) ====================
 function getNextRONumber() {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000); // Wait up to 30s
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: 'Server busy: Could not acquire lock'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   try {
     const sheet = getOrCreateSheet();
-    const lastRow = sheet.getLastRow();
-
-    // 1. Calculate Current Financial Year (Starts April 1st) [cite: 54]
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth(); // 0 = Jan, 3 = April
-
-    let startYear, endYear;
-    if (month < 3) { // If Jan, Feb, or Mar, we are still in the previous FY
-      startYear = year - 1;
-      endYear = year;
-    } else { // From April 1st onwards, we start the new FY
-      startYear = year;
-      endYear = year + 1;
-    }
-
-    // Creates format "26-27" [cite: 69]
-    const currentFY = String(startYear).slice(-2) + '-' + String(endYear).slice(-2);
-
-    // 2. If the sheet is empty, start fresh with the current FY [cite: 65]
-    if (lastRow <= 1) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        nextRONumber: currentFY + '/0001'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    // 3. Get and parse the last recorded R.O. number [cite: 66, 67]
-    const lastRONumber = sheet.getRange(lastRow, 1).getValue();
-    if (!lastRONumber) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        nextRONumber: currentFY + '/0001'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    const parts = lastRONumber.split('/');
-    const lastFY = parts[0]; // e.g., "25-26" [cite: 68]
-    const lastNum = parseInt(parts[1]); // e.g., 0002 [cite: 70]
-
-    // 4. Reset count if the Financial Year has changed
-    let nextRONumber;
-    if (lastFY === currentFY) {
-      // Same year: Increment by 1 
-      const nextCount = (lastNum + 1).toString().padStart(4, '0');
-      nextRONumber = currentFY + '/' + nextCount;
-    } else {
-      // New year started: Reset to 0001
-      nextRONumber = currentFY + '/0001';
-    }
+    const currentFY = getCurrentFinancialYear();
+    const highestNum = getHighestROSequence(sheet, currentFY);
+    const nextCount = (highestNum + 1).toString().padStart(4, '0');
+    const nextRONumber = currentFY + '/' + nextCount;
 
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
@@ -119,15 +155,77 @@ function getNextRONumber() {
       success: false,
       message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }
 
-// ==================== SAVE RELEASE ORDER ====================
+// ==================== RESERVE BATCH R.O. NUMBERS ====================
+// Called right after user reviews/approves the batch to atomically reserve N numbers
+function reserveBatchRONumbers(count) {
+  if (!count || count < 1) count = 1;
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: 'Server busy: Could not acquire lock'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  try {
+    const sheet = getOrCreateSheet();
+    const currentFY = getCurrentFinancialYear();
+    const highestNum = getHighestROSequence(sheet, currentFY);
+
+    const startNum = highestNum + 1;
+    const endNum = highestNum + count;
+
+    // Update reservation in Script Properties
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('RESERVED_FY', currentFY);
+    props.setProperty('RESERVED_MAX_NUM', String(endNum));
+
+    const startRO = currentFY + '/' + startNum.toString().padStart(4, '0');
+    const endRO = currentFY + '/' + endNum.toString().padStart(4, '0');
+
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      currentFY: currentFY,
+      startNum: startNum,
+      endNum: endNum,
+      startRONumber: startRO,
+      endRONumber: endRO,
+      count: count
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ==================== SAVE SINGLE RELEASE ORDER (THREAD-SAFE) ====================
 function saveReleaseOrder(data) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: 'Server busy: Could not acquire lock'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
   try {
     const sheet = getOrCreateSheet();
 
-    // Append new row with data
     sheet.appendRow([
       data.roNumber,
       data.date,
@@ -146,6 +244,9 @@ function saveReleaseOrder(data) {
       data.sizeSS
     ]);
 
+    // Clear script property reservation if current RO meets or exceeds it
+    updateReservationPropertyAfterSave(sheet);
+
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
       message: 'Release order saved successfully'
@@ -156,12 +257,111 @@ function saveReleaseOrder(data) {
       success: false,
       message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }
 
-// ==================== NEW FUNCTIONS ====================
+// ==================== SAVE BATCH RELEASE ORDERS (ATOMIC BULK WRITE) ====================
+function saveBatchReleaseOrders(dataList) {
+  if (!dataList || !Array.isArray(dataList) || dataList.length === 0) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: 'No data provided to save'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 
-// Helper to safely format Google Sheets Date objects back to DD/MM/YYYY
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: 'Server busy: Could not acquire lock'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  try {
+    const sheet = getOrCreateSheet();
+
+    // Sort strictly in ascending order by RO number suffix
+    dataList.sort(function(a, b) {
+      const getNum = function(ro) {
+        if (!ro) return 0;
+        const parts = String(ro).split('/');
+        return parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0;
+      };
+      return getNum(a.roNumber) - getNum(b.roNumber);
+    });
+
+    // Map into 2D row array required by sheet.getRange().setValues()
+    const rows = dataList.map(function(data) {
+      return [
+        data.roNumber,
+        data.date,
+        data.publicationName,
+        data.edition,
+        data.client,
+        data.scheduledDateSS,
+        data.clientExtra,
+        data.scheduledDate,
+        data.dateExtra,
+        data.size,
+        data.templateType,
+        data.position,
+        data.material,
+        data.rate,
+        data.sizeSS
+      ];
+    });
+
+    const startRow = sheet.getLastRow() + 1;
+    const numRows = rows.length;
+    const numCols = rows[0].length;
+
+    // Single atomic write to Google Sheets - zero omitted rows, guaranteed ascending order
+    sheet.getRange(startRow, 1, numRows, numCols).setValues(rows);
+
+    // Update or clear reservations
+    updateReservationPropertyAfterSave(sheet);
+
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      count: numRows,
+      message: numRows + ' Release orders saved successfully in batch'
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function updateReservationPropertyAfterSave(sheet) {
+  try {
+    const currentFY = getCurrentFinancialYear();
+    const highestInSheet = getHighestROSequence(sheet, currentFY);
+    const props = PropertiesService.getScriptProperties();
+    const reservedFY = props.getProperty('RESERVED_FY');
+    const reservedMaxStr = props.getProperty('RESERVED_MAX_NUM');
+
+    if (reservedFY === currentFY && reservedMaxStr) {
+      const reservedMax = parseInt(reservedMaxStr, 10);
+      if (highestInSheet >= reservedMax) {
+        props.deleteProperty('RESERVED_FY');
+        props.deleteProperty('RESERVED_MAX_NUM');
+      }
+    }
+  } catch (e) {
+    // Non-fatal property cleanup
+  }
+}
+
+// ==================== HELPER & FETCH/UPDATE FUNCTIONS ====================
 function formatSheetDate(dateVal) {
   if (dateVal instanceof Date) {
     const dd = String(dateVal.getDate()).padStart(2, '0');
@@ -169,28 +369,26 @@ function formatSheetDate(dateVal) {
     const yyyy = dateVal.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
   }
-  return dateVal; // Return as-is if it's already a text string
+  return dateVal;
 }
 
 function fetchRODetails(roNumber) {
   const sheet = getOrCreateSheet();
   const data = sheet.getDataRange().getValues();
 
-  // OPTIMIZATION: Loop backwards (from last row up to row 1)
-  // Most likely to find recent ROs quickly
   for (let i = data.length - 1; i >= 1; i--) {
-    if (data[i][0] == roNumber) { // Column 0 is RO Number
+    if (data[i][0] == roNumber) {
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
         data: {
           roNumber: data[i][0],
-          date: formatSheetDate(data[i][1]), // Safely format the Generation Date
+          date: formatSheetDate(data[i][1]),
           publicationName: data[i][2],
           edition: data[i][3],
           client: data[i][4],
-          clientExtra: data[i][6],          // NEW
-          scheduledDate: formatSheetDate(data[i][7]), // Safely format the Scheduled Date
-          dateExtra: data[i][8],            // NEW
+          clientExtra: data[i][6],
+          scheduledDate: formatSheetDate(data[i][7]),
+          dateExtra: data[i][8],
           size: data[i][9],
           templateType: data[i][10],
           position: data[i][11],
@@ -208,46 +406,63 @@ function fetchRODetails(roNumber) {
 }
 
 function updateReleaseOrder(data) {
-  const sheet = getOrCreateSheet();
-  const range = sheet.getDataRange();
-  const values = range.getValues();
-
-  // OPTIMIZATION: Loop backwards
-  for (let i = values.length - 1; i >= 1; i--) {
-    if (values[i][0] == data.roNumber) {
-      // Found it! Update the row
-      const rowData = [
-        data.roNumber,
-        data.date,
-        data.publicationName,
-        data.edition,
-        data.client,
-        data.clientExtra,
-        data.scheduledDateSS,
-        data.scheduledDate,
-        data.dateExtra,
-        data.size,
-        data.templateType,
-        data.position,
-        data.material,
-        data.rate,
-        data.sizeSS
-      ];
-
-      // i + 1 because sheet rows are 1-based
-      sheet.getRange(i + 1, 1, 1, rowData.length).setValues([rowData]);
-
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        message: 'RO Updated Successfully'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: 'Server busy: Could not acquire lock'
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  return ContentService.createTextOutput(JSON.stringify({
-    success: false,
-    message: 'RO Number to update was not found'
-  })).setMimeType(ContentService.MimeType.JSON);
+  try {
+    const sheet = getOrCreateSheet();
+    const range = sheet.getDataRange();
+    const values = range.getValues();
+
+    for (let i = values.length - 1; i >= 1; i--) {
+      if (values[i][0] == data.roNumber) {
+        const rowData = [
+          data.roNumber,
+          data.date,
+          data.publicationName,
+          data.edition,
+          data.client,
+          data.clientExtra,
+          data.scheduledDateSS,
+          data.scheduledDate,
+          data.dateExtra,
+          data.size,
+          data.templateType,
+          data.position,
+          data.material,
+          data.rate,
+          data.sizeSS
+        ];
+
+        sheet.getRange(i + 1, 1, 1, rowData.length).setValues([rowData]);
+
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: 'RO Updated Successfully'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: 'RO Number to update was not found'
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      message: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ==================== GET OR CREATE SHEET ====================
@@ -255,11 +470,9 @@ function getOrCreateSheet() {
   const spreadsheet = SpreadsheetApp.openById(SHEET_ID);
   let sheet = spreadsheet.getSheetByName(SHEET_NAME);
 
-  // If sheet doesn't exist, create it
   if (!sheet) {
     sheet = spreadsheet.insertSheet(SHEET_NAME);
 
-    // Add headers
     const headers = [
       'R.O. No.',
       'Date',
@@ -284,37 +497,10 @@ function getOrCreateSheet() {
     sheet.getRange(1, 1, 1, headers.length).setBackground('#4a86e8');
     sheet.getRange(1, 1, 1, headers.length).setFontColor('#ffffff');
 
-    // Auto-resize columns
     for (let i = 1; i <= headers.length; i++) {
       sheet.autoResizeColumn(i);
     }
   }
 
   return sheet;
-}
-
-// ==================== TEST FUNCTIONS ====================
-// Use these to test your setup
-
-function testGetNextRONumber() {
-  const result = getNextRONumber();
-  Logger.log(result.getContent());
-}
-
-function testSaveReleaseOrder() {
-  const testData = {
-    roNumber: '25-26/0001',
-    date: '30/12/2025',
-    publicationName: 'Test Publication',
-    edition: 'Test Edition',
-    client: 'Test Client',
-    scheduledDate: '31/12/2025 MUST',
-    size: '26CM (W) X 33CM (H) = 858 SQCM',
-    position: 'BEST',
-    material: 'Ad. Enclosed',
-    rate: '2000 - less 20% + GST as applicable'
-  };
-
-  const result = saveReleaseOrder(testData);
-  Logger.log(result.getContent());
 }
