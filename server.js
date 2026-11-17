@@ -25,6 +25,7 @@ function loadEnv() {
     }
 }
 loadEnv();
+process.env.GOOGLE_GENAI_API_VERSION = process.env.GOOGLE_GENAI_API_VERSION || 'v1beta';
 
 const PORT = process.env.PORT || 3000;
 
@@ -207,28 +208,65 @@ Each object must contain:
 Output all values in Hinglish using Latin script only (no Devanagari script).
 Output ONLY a valid JSON array of objects, starting with [ and ending with ]. Do not wrap in markdown fences or backticks.`;
 
-            const ai = new GoogleGenAI({ apiKey });
-            const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-            console.log(`[API] Creating background interaction with model "${modelName}"...`);
+            const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
 
-            const interaction = await ai.interactions.create({
-                model: modelName,
-                input: inputParts,
-                system_instruction: systemPrompt,
-                background: true,
-                store: true,
-                generation_config: {
-                    response_mime_type: 'application/json',
-                    temperature: 0.1
+            // Model fallback list: try each in order until one succeeds.
+            // Primary: gemini-3.5-flash-lite (fast, reliable)
+            const modelFallbacks = [
+                process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
+                'gemini-3.5-flash',
+                'gemini-3.8-flash'
+            ];
+            // Deduplicate (in case env var matches one of the fallbacks)
+            const models = [...new Set(modelFallbacks)];
+
+            let interaction = null;
+            let usedModel = null;
+            let lastError = null;
+
+            for (const modelName of models) {
+                console.log(`[API] Trying model "${modelName}" (v1beta)...`);
+                try {
+                    interaction = await ai.interactions.create({
+                        model: modelName,
+                        api_version: 'v1beta',
+                        input: inputParts,
+                        system_instruction: systemPrompt,
+                        background: true,
+                        store: true,
+                        response_format: {
+                            type: 'text',
+                            mime_type: 'application/json'
+                        },
+                        generation_config: {
+                            temperature: 0.1
+                        }
+                    });
+                    usedModel = modelName;
+                    break; // Success — stop trying fallbacks
+                } catch (modelErr) {
+                    lastError = modelErr;
+                    const status = modelErr.status || modelErr.httpStatusCode || '';
+                    console.warn(`[API] Model "${modelName}" failed (${status}): ${modelErr.message}`);
+                    // Only retry on 503 (overloaded) or 404 (model not found). Stop on auth/quota errors.
+                    if (status === 401 || status === 403 || status === 429) {
+                        console.error(`[API] Non-retryable error (${status}), stopping fallback chain.`);
+                        break;
+                    }
                 }
-            });
+            }
 
-            console.log(`[API] Background task created! ID: ${interaction.id}, Status: ${interaction.status}`);
+            if (!interaction) {
+                throw lastError || new Error('All model fallbacks failed');
+            }
+
+            console.log(`[API] Background task created with "${usedModel}"! ID: ${interaction.id}, Status: ${interaction.status}`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
                 id: interaction.id,
-                status: interaction.status || 'in_progress'
+                status: interaction.status || 'in_progress',
+                model: usedModel
             }));
             return;
 
@@ -267,8 +305,8 @@ Output ONLY a valid JSON array of objects, starting with [ and ending with ]. Do
                 return;
             }
 
-            const ai = new GoogleGenAI({ apiKey });
-            const interaction = await ai.interactions.get(id);
+            const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
+            const interaction = await ai.interactions.get(id, { api_version: 'v1beta' });
             const status = interaction.status || 'in_progress';
             console.log(`[API] Check-task "${id}" status: ${status}`);
 

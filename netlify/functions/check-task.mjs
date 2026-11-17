@@ -120,8 +120,8 @@ export const handler = async (event) => {
     }
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
-        const interaction = await ai.interactions.get(id);
+        const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
+        const interaction = await ai.interactions.get(id, { api_version: 'v1beta' });
 
         const status = interaction.status || 'in_progress';
         console.log(`[check-task] Interaction "${id}" status: ${status}`);

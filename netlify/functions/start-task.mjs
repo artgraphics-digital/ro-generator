@@ -100,24 +100,55 @@ export const handler = async (event) => {
     });
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
 
-        const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-        console.log(`[start-task] Initiating background interaction with model: ${modelName}`);
+        const modelFallbacks = [
+            process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
+            'gemini-3.5-flash',
+            'gemini-3.8-flash'
+        ];
+        const models = [...new Set(modelFallbacks)];
 
-        const interaction = await ai.interactions.create({
-            model: modelName,
-            input: inputParts,
-            system_instruction: SYSTEM_PROMPT,
-            background: true,
-            store: true,
-            generation_config: {
-                response_mime_type: 'application/json',
-                temperature: 0.1
+        let interaction = null;
+        let usedModel = null;
+        let lastError = null;
+
+        for (const modelName of models) {
+            console.log(`[start-task] Trying model "${modelName}" (v1beta)...`);
+            try {
+                interaction = await ai.interactions.create({
+                    model: modelName,
+                    api_version: 'v1beta',
+                    input: inputParts,
+                    system_instruction: SYSTEM_PROMPT,
+                    background: true,
+                    store: true,
+                    response_format: {
+                        type: 'text',
+                        mime_type: 'application/json'
+                    },
+                    generation_config: {
+                        temperature: 0.1
+                    }
+                });
+                usedModel = modelName;
+                break;
+            } catch (modelErr) {
+                lastError = modelErr;
+                const status = modelErr.status || modelErr.httpStatusCode || '';
+                console.warn(`[start-task] Model "${modelName}" failed (${status}): ${modelErr.message}`);
+                if (status === 401 || status === 403 || status === 429) {
+                    console.error(`[start-task] Non-retryable error (${status}), stopping fallback.`);
+                    break;
+                }
             }
-        });
+        }
 
-        console.log(`[start-task] Background interaction created! ID: ${interaction.id}, Status: ${interaction.status}`);
+        if (!interaction) {
+            throw lastError || new Error('All model fallbacks failed');
+        }
+
+        console.log(`[start-task] Background interaction created with "${usedModel}"! ID: ${interaction.id}, Status: ${interaction.status}`);
 
         return {
             statusCode: 200,
@@ -128,7 +159,8 @@ export const handler = async (event) => {
             body: JSON.stringify({
                 success: true,
                 id: interaction.id,
-                status: interaction.status || 'in_progress'
+                status: interaction.status || 'in_progress',
+                model: usedModel
             })
         };
     } catch (err) {
