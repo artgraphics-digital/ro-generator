@@ -143,9 +143,14 @@ export const handler = async (event) => {
 
         // 2. Failed or cancelled
         if (status === 'failed' || status === 'cancelled') {
-            const errMsg = interaction.error?.message ||
-                           (typeof interaction.error === 'string' ? interaction.error : null) ||
-                           `Interaction ended with status "${status}"`;
+            let errMsg = null;
+            if (Array.isArray(interaction.errors) && interaction.errors.length > 0) {
+                errMsg = interaction.errors.map(e => e.message || e.code || JSON.stringify(e)).join('; ');
+            } else if (interaction.error) {
+                errMsg = interaction.error.message || (typeof interaction.error === 'string' ? interaction.error : JSON.stringify(interaction.error));
+            } else {
+                errMsg = `Interaction ended with status "${status}"`;
+            }
             console.warn(`[check-task] Interaction "${id}" failed: ${errMsg}`);
             return {
                 statusCode: 200,
@@ -153,7 +158,8 @@ export const handler = async (event) => {
                 body: JSON.stringify({
                     success: false,
                     status: status,
-                    error: errMsg
+                    error: errMsg,
+                    errors: interaction.errors || null
                 })
             };
         }

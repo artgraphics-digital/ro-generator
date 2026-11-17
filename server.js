@@ -211,13 +211,15 @@ Output ONLY a valid JSON array of objects, starting with [ and ending with ]. Do
             const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
 
             // Model fallback list: try each in order until one succeeds.
-            // Primary: gemini-3.5-flash-lite (fast, reliable)
+            // Primary: gemini-3.1-flash-lite (fast, high quota, reliable PDF OCR)
+            const requestedModel = body.model && body.model.trim();
             const modelFallbacks = [
-                process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
-                'gemini-3.5-flash',
-                'gemini-3.8-flash'
-            ];
-            // Deduplicate (in case env var matches one of the fallbacks)
+                requestedModel,
+                process.env.GEMINI_MODEL,
+                'gemini-3.1-flash-lite',
+                'gemini-flash-lite-latest',
+                'gemini-3.5-flash-lite'
+            ].filter(Boolean);
             const models = [...new Set(modelFallbacks)];
 
             let interaction = null;
@@ -317,11 +319,17 @@ Output ONLY a valid JSON array of objects, starting with [ and ending with ]. Do
             }
 
             if (status === 'failed' || status === 'cancelled') {
-                const errMsg = interaction.error?.message ||
-                               (typeof interaction.error === 'string' ? interaction.error : null) ||
-                               `Interaction ended with status "${status}"`;
+                let errMsg = null;
+                if (Array.isArray(interaction.errors) && interaction.errors.length > 0) {
+                    errMsg = interaction.errors.map(e => e.message || e.code || JSON.stringify(e)).join('; ');
+                } else if (interaction.error) {
+                    errMsg = interaction.error.message || (typeof interaction.error === 'string' ? interaction.error : JSON.stringify(interaction.error));
+                } else {
+                    errMsg = `Interaction ended with status "${status}"`;
+                }
+                console.warn(`[API] Interaction "${id}" failed: ${errMsg}`);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, status, error: errMsg }));
+                res.end(JSON.stringify({ success: false, status, error: errMsg, errors: interaction.errors || null }));
                 return;
             }
 

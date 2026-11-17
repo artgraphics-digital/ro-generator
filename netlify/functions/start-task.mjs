@@ -102,11 +102,14 @@ export const handler = async (event) => {
     try {
         const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
 
+        const requestedModel = body.model && body.model.trim();
         const modelFallbacks = [
-            process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
-            'gemini-3.5-flash',
-            'gemini-3.8-flash'
-        ];
+            requestedModel,
+            process.env.GEMINI_MODEL,
+            'gemini-3.1-flash-lite',
+            'gemini-flash-lite-latest',
+            'gemini-3.5-flash-lite'
+        ].filter(Boolean);
         const models = [...new Set(modelFallbacks)];
 
         let interaction = null;

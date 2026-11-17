@@ -1593,15 +1593,21 @@
                 const taskId = startResult.id;
                 console.log('[Batch Extract] Background interaction initiated with ID:', taskId);
 
-                // Step 2: Poll every 30 seconds (up to 4 minutes = 8 checks)
-                const POLL_INTERVAL_SEC = 30;
-                const MAX_POLLS = 8; // 8 * 30s = 240 seconds = 4 minutes
-                let pollCount = 0;
+                // Step 2: Poll with fast adaptive cadence (starts at 3s, then 5s, 10s, 15s, up to 4 minutes max)
+                const POLL_CADENCE = [3, 5, 10, 15, 20, 25, 30, 30, 30, 30, 30];
+                let pollIndex = 0;
                 let consecutiveErrors = 0;
 
                 const runPoll = () => {
                     return new Promise((resolve, reject) => {
-                        let countdown = POLL_INTERVAL_SEC;
+                        const getNextInterval = () => {
+                            if (pollIndex < POLL_CADENCE.length) {
+                                return POLL_CADENCE[pollIndex];
+                            }
+                            return 30;
+                        };
+
+                        let countdown = getNextInterval();
 
                         const tickCountdown = () => {
                             if (countdown > 0) {
@@ -1616,7 +1622,7 @@
                         };
 
                         const executeCheck = async () => {
-                            pollCount++;
+                            pollIndex++;
                             try {
                                 const checkUrl = `/api/check-task?id=${encodeURIComponent(taskId)}${customKey ? '&apiKey=' + encodeURIComponent(customKey) : ''}`;
                                 const checkResponse = await fetch(checkUrl, {
@@ -1643,14 +1649,14 @@
                                     return;
                                 }
 
-                                // Still in progress
-                                if (pollCount >= MAX_POLLS) {
+                                // Still in progress (cap at ~4 minutes = 15 polls total)
+                                if (pollIndex >= 15) {
                                     reject(new Error('Extraction timed out after 4 minutes. The file may be too large or dense. Try pasting schedule text or using a smaller document.'));
                                     return;
                                 }
 
-                                // Restart countdown for next poll
-                                countdown = POLL_INTERVAL_SEC;
+                                // Restart countdown for next poll with adaptive interval
+                                countdown = getNextInterval();
                                 activeCountdownInterval = setInterval(tickCountdown, 1000);
                                 tickCountdown();
 
@@ -1661,20 +1667,20 @@
                                 }
 
                                 consecutiveErrors++;
-                                console.warn(`[Batch Extract] Poll attempt ${pollCount} error (${consecutiveErrors}/3):`, err.message);
+                                console.warn(`[Batch Extract] Poll attempt ${pollIndex} error (${consecutiveErrors}/3):`, err.message);
 
                                 if (consecutiveErrors >= 3) {
                                     reject(new Error('Network error polling status: ' + err.message));
                                     return;
                                 }
 
-                                if (pollCount >= MAX_POLLS) {
+                                if (pollIndex >= 15) {
                                     reject(new Error('Extraction timed out after 4 minutes.'));
                                     return;
                                 }
 
                                 // Retry on next interval
-                                countdown = POLL_INTERVAL_SEC;
+                                countdown = getNextInterval();
                                 activeCountdownInterval = setInterval(tickCountdown, 1000);
                                 tickCountdown();
                             }
