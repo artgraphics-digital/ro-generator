@@ -1593,8 +1593,9 @@
                 const taskId = startResult.id;
                 console.log('[Batch Extract] Background interaction initiated with ID:', taskId);
 
-                // Step 2: Poll with fast adaptive cadence (starts at 3s, then 5s, 10s, 15s, up to 4 minutes max)
-                const POLL_CADENCE = [3, 5, 10, 15, 20, 25, 30, 30, 30, 30, 30];
+                // Step 2: Poll with adaptive cadence (starts at 15s, then 20s, then 30s and so on, capped at ~4 minutes)
+                const POLL_CADENCE = [15, 20, 30, 30, 30, 30, 30, 30, 30];
+                const MAX_POLLS = POLL_CADENCE.length; // 15s + 20s + 7*30s = 245s (~4 mins)
                 let pollIndex = 0;
                 let consecutiveErrors = 0;
 
@@ -1649,8 +1650,8 @@
                                     return;
                                 }
 
-                                // Still in progress (cap at ~4 minutes = 15 polls total)
-                                if (pollIndex >= 15) {
+                                // Still in progress (cap at ~4 minutes)
+                                if (pollIndex >= MAX_POLLS) {
                                     reject(new Error('Extraction timed out after 4 minutes. The file may be too large or dense. Try pasting schedule text or using a smaller document.'));
                                     return;
                                 }
@@ -1674,7 +1675,7 @@
                                     return;
                                 }
 
-                                if (pollIndex >= 15) {
+                                if (pollIndex >= MAX_POLLS) {
                                     reject(new Error('Extraction timed out after 4 minutes.'));
                                     return;
                                 }
