@@ -13,8 +13,7 @@ A client-side web application for generating advertising Release Order PDFs with
 | `netlify/functions/start-task.mjs` | **Async AI Extraction Trigger** — Initiates a background Gemini Interactions API task (`background: true`, `store: true`) using `@google/genai` and immediately returns the interaction ID in < 2 seconds, avoiding serverless timeout limits. |
 | `netlify/functions/check-task.mjs` | **Async AI Status Polling** — Checks ongoing Gemini interaction status via `ai.interactions.get()`. When complete, extracts JSON data, expands routine abbreviations (`दै0`/`दै०` → Daily, `सा0`/`सा०` → Weekly), and merges multi-edition publications. |
 | `netlify/functions/config.js` | **Serverless Config Endpoint** — Exposes server-side API key configuration status without leaking the key. |
-| `netlify/functions/extract.js` | **Legacy Synchronous Endpoint** — Retained as historical fallback for small payloads. |
-| `server.js` | **Local Development Server** — Provides full environment parity for local development (`node server.js`), serving static files and implementing matching `/api/start-task`, `/api/check-task`, `/api/config`, and `/api/extract` routes. |
+| `server.js` | **Local Development Server** — Provides full environment parity for local development (`node server.js`), serving static files and implementing matching `/api/start-task`, `/api/check-task`, and `/api/config` routes. |
 | `RO_With_Remarks.pdf` | **Template** — Base PDF template with Remarks section. |
 | `RO_No_Remarks.pdf` | **Template** — Base PDF template without Remarks section. |
 | `Logo.ico` | Application icon / Favicon. |

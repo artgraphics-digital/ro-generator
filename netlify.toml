@@ -20,11 +20,6 @@
   to   = "/.netlify/functions/check-task"
   status = 200
 
-[[redirects]]
-  from = "/api/extract"
-  to   = "/.netlify/functions/extract"
-  status = 200
-
 # Block public web download of server.js
 [[redirects]]
   from = "/server.js"
