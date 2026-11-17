@@ -1,0 +1,18 @@
+{
+  "name": "ro-generator",
+  "version": "1.0.0",
+  "description": "Release Order Generator - Artgraphics",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "release-order",
+    "pdf-generator"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^3.4.0"
+  }
+}

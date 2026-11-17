@@ -347,6 +347,26 @@
             box-shadow: 0 6px 10px rgba(234, 88, 12, 0.3);
         }
 
+        .btn-cancel-extract {
+            background: #dc2626;
+            color: white;
+            padding: 14px 22px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2);
+            white-space: nowrap;
+        }
+
+        .btn-cancel-extract:hover {
+            background: #b91c1c;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px rgba(220, 38, 38, 0.3);
+        }
+
         /* Correction Search Box */
         #correctionSearch {
             background: #fee2e2;
@@ -1178,9 +1198,14 @@
                     </div>
                 </div>
 
-                <button type="button" class="btn-batch-extract" id="batchExtractBtn" onclick="extractBatchSchedule()">
-                    ⚡ Extract Newspaper Schedule with AI
-                </button>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
+                    <button type="button" class="btn-batch-extract" id="batchExtractBtn" onclick="extractBatchSchedule()" style="margin-top: 0; flex: 1;">
+                        ⚡ Extract Newspaper Schedule with AI
+                    </button>
+                    <button type="button" class="btn-cancel-extract" id="batchCancelBtn" onclick="cancelBatchExtraction()" style="display: none;">
+                        ✕ Cancel Extraction
+                    </button>
+                </div>
             </form>
 
             <!-- Extracted Items Review & ZIP Generation Area -->
@@ -1470,9 +1495,42 @@
             });
         }
 
+        let currentExtractionController = null;
+        let activePollingTimer = null;
+        let activeCountdownInterval = null;
+
+        function cancelBatchExtraction() {
+            if (activePollingTimer) {
+                clearTimeout(activePollingTimer);
+                activePollingTimer = null;
+            }
+            if (activeCountdownInterval) {
+                clearInterval(activeCountdownInterval);
+                activeCountdownInterval = null;
+            }
+            if (currentExtractionController) {
+                try { currentExtractionController.abort(); } catch (_) {}
+                currentExtractionController = null;
+            }
+
+            const extractBtn = document.getElementById('batchExtractBtn');
+            const cancelBtn = document.getElementById('batchCancelBtn');
+
+            if (extractBtn) {
+                extractBtn.disabled = false;
+                extractBtn.innerHTML = '⚡ Extract Newspaper Schedule with AI';
+            }
+            if (cancelBtn) {
+                cancelBtn.style.display = 'none';
+            }
+
+            showStatus('info', 'Extraction cancelled by user.');
+        }
+
         async function extractBatchSchedule() {
             const textInput = document.getElementById('batchTextInput');
             const extractBtn = document.getElementById('batchExtractBtn');
+            const cancelBtn = document.getElementById('batchCancelBtn');
 
             if (!selectedBatchFile && (!textInput || !textInput.value.trim())) {
                 alert("Please upload a client schedule PDF or paste schedule text first.");
@@ -1491,8 +1549,14 @@
                 return;
             }
 
+            // Reset any previous timer/controller
+            if (activePollingTimer) clearTimeout(activePollingTimer);
+            if (activeCountdownInterval) clearInterval(activeCountdownInterval);
+            currentExtractionController = new AbortController();
+
             extractBtn.disabled = true;
-            extractBtn.innerHTML = '<span class="loading"></span> Extracting with Gemini & Skill...';
+            extractBtn.innerHTML = '<span class="loading"></span> Starting background extraction with Gemini...';
+            if (cancelBtn) cancelBtn.style.display = 'inline-block';
 
             try {
                 let pdfBase64 = null;
@@ -1502,9 +1566,11 @@
 
                 const customKey = localStorage.getItem('custom_gemini_api_key') || '';
 
-                const response = await fetch('/api/extract', {
+                // Step 1: Initiate background task
+                const startResponse = await fetch('/api/start-task', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    signal: currentExtractionController.signal,
                     body: JSON.stringify({
                         pdfBase64: pdfBase64,
                         text: textInput ? textInput.value.trim() : '',
@@ -1512,37 +1578,146 @@
                     })
                 });
 
-                const rawResponseText = await response.text();
-                let result;
+                const rawStartText = await startResponse.text();
+                let startResult;
                 try {
-                    result = JSON.parse(rawResponseText);
-                } catch (parseErr) {
-                    if (response.status === 504 || response.status === 502) {
-                        throw new Error(`Server timeout (${response.status}). Netlify function timed out processing this file (max 26s). Try pasting the schedule text or using a smaller PDF.`);
-                    }
-                    throw new Error(`Server returned non-JSON response (${response.status}): ${rawResponseText.slice(0, 150)}`);
+                    startResult = JSON.parse(rawStartText);
+                } catch (pErr) {
+                    throw new Error(`Server returned invalid response: ${rawStartText.slice(0, 150)}`);
                 }
 
-                if (!result.success) {
-                    throw new Error(result.message || 'Extraction failed');
+                if (!startResult.success || !startResult.id) {
+                    throw new Error(startResult.message || 'Failed to start Gemini background task');
                 }
 
-                if (!result.data || result.data.length === 0) {
+                const taskId = startResult.id;
+                console.log('[Batch Extract] Background interaction initiated with ID:', taskId);
+
+                // Step 2: Poll every 30 seconds (up to 4 minutes = 8 checks)
+                const POLL_INTERVAL_SEC = 30;
+                const MAX_POLLS = 8; // 8 * 30s = 240 seconds = 4 minutes
+                let pollCount = 0;
+                let consecutiveErrors = 0;
+
+                const runPoll = () => {
+                    return new Promise((resolve, reject) => {
+                        let countdown = POLL_INTERVAL_SEC;
+
+                        const tickCountdown = () => {
+                            if (countdown > 0) {
+                                extractBtn.innerHTML = `<span class="loading"></span> Extracting with Gemini (checking in ${countdown}s)...`;
+                                countdown--;
+                            } else {
+                                clearInterval(activeCountdownInterval);
+                                activeCountdownInterval = null;
+                                extractBtn.innerHTML = `<span class="loading"></span> Checking status with Gemini...`;
+                                executeCheck();
+                            }
+                        };
+
+                        const executeCheck = async () => {
+                            pollCount++;
+                            try {
+                                const checkUrl = `/api/check-task?id=${encodeURIComponent(taskId)}${customKey ? '&apiKey=' + encodeURIComponent(customKey) : ''}`;
+                                const checkResponse = await fetch(checkUrl, {
+                                    signal: currentExtractionController ? currentExtractionController.signal : undefined
+                                });
+
+                                const rawCheckText = await checkResponse.text();
+                                let checkResult;
+                                try {
+                                    checkResult = JSON.parse(rawCheckText);
+                                } catch (e) {
+                                    throw new Error(`Invalid status response from server: ${rawCheckText.slice(0, 150)}`);
+                                }
+
+                                consecutiveErrors = 0; // reset on successful response
+
+                                if (checkResult.status === 'completed') {
+                                    resolve(checkResult);
+                                    return;
+                                }
+
+                                if (checkResult.status === 'failed' || checkResult.status === 'cancelled') {
+                                    reject(new Error(checkResult.error || `Task ended with status "${checkResult.status}"`));
+                                    return;
+                                }
+
+                                // Still in progress
+                                if (pollCount >= MAX_POLLS) {
+                                    reject(new Error('Extraction timed out after 4 minutes. The file may be too large or dense. Try pasting schedule text or using a smaller document.'));
+                                    return;
+                                }
+
+                                // Restart countdown for next poll
+                                countdown = POLL_INTERVAL_SEC;
+                                activeCountdownInterval = setInterval(tickCountdown, 1000);
+                                tickCountdown();
+
+                            } catch (err) {
+                                if (err.name === 'AbortError') {
+                                    // Cancelled by user
+                                    return;
+                                }
+
+                                consecutiveErrors++;
+                                console.warn(`[Batch Extract] Poll attempt ${pollCount} error (${consecutiveErrors}/3):`, err.message);
+
+                                if (consecutiveErrors >= 3) {
+                                    reject(new Error('Network error polling status: ' + err.message));
+                                    return;
+                                }
+
+                                if (pollCount >= MAX_POLLS) {
+                                    reject(new Error('Extraction timed out after 4 minutes.'));
+                                    return;
+                                }
+
+                                // Retry on next interval
+                                countdown = POLL_INTERVAL_SEC;
+                                activeCountdownInterval = setInterval(tickCountdown, 1000);
+                                tickCountdown();
+                            }
+                        };
+
+                        // Start initial countdown
+                        activeCountdownInterval = setInterval(tickCountdown, 1000);
+                        tickCountdown();
+                    });
+                };
+
+                const finalResult = await runPoll();
+
+                if (!finalResult.data || finalResult.data.length === 0) {
                     throw new Error("No newspaper entries were found in the document. Please check the document or paste the text directly.");
                 }
 
-                renderBatchPreviewTable(result.data);
-                showStatus('info', `Successfully extracted ${result.data.length} publications. Review below and generate.`);
+                renderBatchPreviewTable(finalResult.data);
+                showStatus('info', `Successfully extracted ${finalResult.data.length} publications. Review below and generate.`);
 
             } catch (err) {
+                if (err.name === 'AbortError') {
+                    // Handled in cancelBatchExtraction
+                    return;
+                }
                 console.error('Batch extraction error:', err);
                 showStatus('error', 'Extraction error: ' + err.message);
                 if (err.message && err.message.includes('API key')) {
                     openApiKeyModal();
                 }
             } finally {
+                if (activePollingTimer) {
+                    clearTimeout(activePollingTimer);
+                    activePollingTimer = null;
+                }
+                if (activeCountdownInterval) {
+                    clearInterval(activeCountdownInterval);
+                    activeCountdownInterval = null;
+                }
+                currentExtractionController = null;
                 extractBtn.disabled = false;
                 extractBtn.innerHTML = '⚡ Extract Newspaper Schedule with AI';
+                if (cancelBtn) cancelBtn.style.display = 'none';
             }
         }
 

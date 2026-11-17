@@ -11,6 +11,23 @@
   status = 200
 
 [[redirects]]
+  from = "/api/start-task"
+  to   = "/.netlify/functions/start-task"
+  status = 200
+
+[[redirects]]
+  from = "/api/check-task"
+  to   = "/.netlify/functions/check-task"
+  status = 200
+
+[[redirects]]
   from = "/api/extract"
   to   = "/.netlify/functions/extract"
   status = 200
+
+# Block public web download of server.js
+[[redirects]]
+  from = "/server.js"
+  to   = "/index.html"
+  status = 404
+  force = true
