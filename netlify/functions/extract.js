@@ -198,7 +198,13 @@ Output ONLY a valid JSON array of objects, starting with [ and ending with ]. Do
         : `extract\nExtract all newspaper release entries from the attached document.`;
     parts.push({ text: userPromptText });
 
-    const candidateModels = ['gemini-4-hydrogen', 'gemini-3.6-flash'];
+    const candidateModels = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-4-hydrogen',
+        'gemini-3.6-flash'
+    ];
     let geminiRes = null;
     let lastErrText = '';
     let successfulModel = '';

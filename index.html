@@ -1512,7 +1512,17 @@
                     })
                 });
 
-                const result = await response.json();
+                const rawResponseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(rawResponseText);
+                } catch (parseErr) {
+                    if (response.status === 504 || response.status === 502) {
+                        throw new Error(`Server timeout (${response.status}). Netlify function timed out processing this file (max 26s). Try pasting the schedule text or using a smaller PDF.`);
+                    }
+                    throw new Error(`Server returned non-JSON response (${response.status}): ${rawResponseText.slice(0, 150)}`);
+                }
+
                 if (!result.success) {
                     throw new Error(result.message || 'Extraction failed');
                 }
